@@ -18,6 +18,12 @@ import 'package:rsc_rider/features/auth/domain/repositories/auth_repository.dart
 import 'package:rsc_rider/features/auth/domain/usecases/login_use_case.dart';
 import 'package:rsc_rider/features/auth/domain/usecases/logout_use_case.dart';
 import 'package:rsc_rider/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:rsc_rider/features/dashboard/data/datasources/dashboard_remote_data_source.dart';
+import 'package:rsc_rider/features/dashboard/data/repositories/dashboard_repository_impl.dart';
+import 'package:rsc_rider/features/dashboard/domain/repositories/dashboard_repository.dart';
+import 'package:rsc_rider/features/dashboard/domain/usecases/get_dashboard_summary_use_case.dart';
+import 'package:rsc_rider/features/dashboard/domain/usecases/set_availability_use_case.dart';
+import 'package:rsc_rider/features/dashboard/presentation/bloc/dashboard_bloc.dart';
 
 final GetIt getIt = GetIt.instance;
 
@@ -64,7 +70,7 @@ Future<void> setupDependencies({bool firebaseAvailable = false}) async {
 
   // ── Features ───────────────────────────────────────────────────────────────
   _registerAuth();
-  // _registerDashboard();
+  _registerDashboard();
   // _registerDispatch();
   // _registerDelivery();
   // _registerHistory();
@@ -93,6 +99,28 @@ void _registerAuth() {
       () => AuthBloc(
         loginUseCase: getIt<LoginUseCase>(),
         logoutUseCase: getIt<LogoutUseCase>(),
+      ),
+    );
+}
+
+void _registerDashboard() {
+  getIt
+    ..registerLazySingleton<DashboardRemoteDataSource>(
+      () => DashboardRemoteDataSource(getIt<DioClient>()),
+    )
+    ..registerLazySingleton<DashboardRepository>(
+      () => DashboardRepositoryImpl(getIt<DashboardRemoteDataSource>()),
+    )
+    ..registerLazySingleton<GetDashboardSummaryUseCase>(
+      () => GetDashboardSummaryUseCase(getIt<DashboardRepository>()),
+    )
+    ..registerLazySingleton<SetAvailabilityUseCase>(
+      () => SetAvailabilityUseCase(getIt<DashboardRepository>()),
+    )
+    ..registerFactory<DashboardBloc>(
+      () => DashboardBloc(
+        getDashboardSummary: getIt<GetDashboardSummaryUseCase>(),
+        setAvailability: getIt<SetAvailabilityUseCase>(),
       ),
     );
 }
