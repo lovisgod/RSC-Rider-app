@@ -19,6 +19,21 @@ abstract final class AppStrings {
   static const String weekEarnings = 'This Week';
   static const String totalDeliveries = 'Total Deliveries';
   static const String todayDeliveries = 'Today';
+  static const String availability = 'Availability';
+  static const String onlineSubtitle = 'You are online and visible to kitchens';
+  static const String offlineSubtitle =
+      'You are offline. Go online to receive orders';
+  static const String todayEarningsLabel = 'TODAY';
+  static const String weekEarningsLabel = 'THIS WEEK';
+  static const String deliveries = 'deliveries';
+  static const String viewIncomingOrders = 'View Incoming Orders →';
+  static const String goOnlineToStart = 'Go Online to Start';
+  static const String youAreOfflineMap = 'You are offline';
+  static const String toggleToGoOnline = 'Toggle availability to go online';
+  static const String centerOnMe = 'Center on me';
+  static const String goodMorning = 'Good morning';
+  static const String goodAfternoon = 'Good afternoon';
+  static const String goodEvening = 'Good evening';
 
   // Dispatch
   static const String newDelivery = 'New Delivery Request';

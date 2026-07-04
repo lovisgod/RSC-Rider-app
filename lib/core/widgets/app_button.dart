@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:rsc_rider/core/constants/app_colors.dart';
 import 'package:rsc_rider/core/constants/app_spacing.dart';
 import 'package:rsc_rider/core/widgets/app_loader.dart';
 
@@ -43,7 +44,7 @@ class AppButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final child = isLoading
-        ? const AppLoader(color: Colors.white)
+        ? const AppLoader(color: AppColors.textOnDark)
         : _buildLabel();
 
     return SizedBox(

@@ -7,13 +7,10 @@ import 'package:rsc_rider/features/auth/presentation/bloc/auth_event.dart';
 import 'package:rsc_rider/features/auth/presentation/bloc/auth_state.dart';
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
-  // ignore: prefer_initializing_formals — named params need public names for DI callers.
   AuthBloc({
-    required LoginUseCase loginUseCase,
-    required LogoutUseCase logoutUseCase,
-  })  : _loginUseCase = loginUseCase,
-        _logoutUseCase = logoutUseCase,
-        super(const AuthInitial()) {
+    required this._loginUseCase,
+    required this._logoutUseCase,
+  }) : super(const AuthInitial()) {
     on<AuthLoginRequested>(_onLoginRequested);
     on<AuthLogoutRequested>(_onLogoutRequested);
   }

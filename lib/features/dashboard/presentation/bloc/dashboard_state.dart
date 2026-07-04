@@ -1,5 +1,5 @@
 import 'package:equatable/equatable.dart';
-import 'package:rsc_rider/features/dashboard/domain/entities/dashboard_summary_entity.dart';
+import 'package:rsc_rider/core/mock/mock_dashboard.dart';
 
 sealed class DashboardState extends Equatable {
   const DashboardState();
@@ -17,32 +17,80 @@ final class DashboardLoading extends DashboardState {
 }
 
 final class DashboardLoaded extends DashboardState {
-  const DashboardLoaded(
-    this.summary, {
-    this.isUpdatingAvailability = false,
-    this.availabilityError,
+  const DashboardLoaded({
+    required this.riderName,
+    required this.riderInitials,
+    this.isOnline = false,
+    required this.todayEarnings,
+    required this.todayDeliveries,
+    required this.weekEarnings,
+    required this.weekDeliveries,
+    this.nearbyKitchens = const [],
+    this.riderLatitude,
+    this.riderLongitude,
+    this.isLoadingLocation = false,
+    this.locationError,
   });
 
-  final DashboardSummaryEntity summary;
-  final bool isUpdatingAvailability;
-  final String? availabilityError;
+  final String riderName;
+  final String riderInitials;
+  final bool isOnline;
+  final double todayEarnings;
+  final int todayDeliveries;
+  final double weekEarnings;
+  final int weekDeliveries;
+  final List<MockKitchen> nearbyKitchens;
+  final double? riderLatitude;
+  final double? riderLongitude;
+  final bool isLoadingLocation;
+  final String? locationError;
 
   DashboardLoaded copyWith({
-    DashboardSummaryEntity? summary,
-    bool? isUpdatingAvailability,
-    String? availabilityError,
-    bool clearError = false,
+    String? riderName,
+    String? riderInitials,
+    bool? isOnline,
+    double? todayEarnings,
+    int? todayDeliveries,
+    double? weekEarnings,
+    int? weekDeliveries,
+    List<MockKitchen>? nearbyKitchens,
+    double? riderLatitude,
+    double? riderLongitude,
+    bool? isLoadingLocation,
+    String? locationError,
+    bool clearLocationError = false,
   }) =>
       DashboardLoaded(
-        summary ?? this.summary,
-        isUpdatingAvailability:
-            isUpdatingAvailability ?? this.isUpdatingAvailability,
-        availabilityError:
-            clearError ? null : (availabilityError ?? this.availabilityError),
+        riderName: riderName ?? this.riderName,
+        riderInitials: riderInitials ?? this.riderInitials,
+        isOnline: isOnline ?? this.isOnline,
+        todayEarnings: todayEarnings ?? this.todayEarnings,
+        todayDeliveries: todayDeliveries ?? this.todayDeliveries,
+        weekEarnings: weekEarnings ?? this.weekEarnings,
+        weekDeliveries: weekDeliveries ?? this.weekDeliveries,
+        nearbyKitchens: nearbyKitchens ?? this.nearbyKitchens,
+        riderLatitude: riderLatitude ?? this.riderLatitude,
+        riderLongitude: riderLongitude ?? this.riderLongitude,
+        isLoadingLocation: isLoadingLocation ?? this.isLoadingLocation,
+        locationError:
+            clearLocationError ? null : (locationError ?? this.locationError),
       );
 
   @override
-  List<Object?> get props => [summary, isUpdatingAvailability, availabilityError];
+  List<Object?> get props => [
+        riderName,
+        riderInitials,
+        isOnline,
+        todayEarnings,
+        todayDeliveries,
+        weekEarnings,
+        weekDeliveries,
+        nearbyKitchens,
+        riderLatitude,
+        riderLongitude,
+        isLoadingLocation,
+        locationError,
+      ];
 }
 
 final class DashboardError extends DashboardState {

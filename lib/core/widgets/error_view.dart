@@ -27,7 +27,7 @@ class ErrorView extends StatelessWidget {
               const Icon(
                 Icons.wifi_off_rounded,
                 size: AppSpacing.iconXl,
-                color: AppColors.textDisabled,
+                color: AppColors.neutralGray,
               ),
               const SizedBox(height: AppSpacing.md),
               Text(

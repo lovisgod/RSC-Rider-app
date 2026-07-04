@@ -1,4 +1,4 @@
-import 'package:firebase_messaging/firebase_messaging.dart';
+// import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get_it/get_it.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -9,20 +9,22 @@ import 'package:rsc_rider/core/network/socket_client.dart';
 import 'package:rsc_rider/core/router/route_guards.dart';
 import 'package:rsc_rider/core/services/deep_link_service.dart';
 import 'package:rsc_rider/core/services/location_service.dart';
-import 'package:rsc_rider/core/services/notification_service.dart';
+// import 'package:rsc_rider/core/services/notification_service.dart';
 import 'package:rsc_rider/core/storage/cache_manager.dart';
 import 'package:rsc_rider/core/storage/local_storage.dart';
 import 'package:rsc_rider/features/auth/data/datasources/auth_remote_data_source.dart';
-import 'package:rsc_rider/features/auth/data/repositories/auth_repository_impl.dart';
+// import 'package:rsc_rider/features/auth/data/repositories/auth_repository_impl.dart';
+import 'package:rsc_rider/features/auth/data/repositories/mock_auth_repository.dart';
 import 'package:rsc_rider/features/auth/domain/repositories/auth_repository.dart';
 import 'package:rsc_rider/features/auth/domain/usecases/login_use_case.dart';
 import 'package:rsc_rider/features/auth/domain/usecases/logout_use_case.dart';
 import 'package:rsc_rider/features/auth/presentation/bloc/auth_bloc.dart';
-import 'package:rsc_rider/features/dashboard/data/datasources/dashboard_remote_data_source.dart';
-import 'package:rsc_rider/features/dashboard/data/repositories/dashboard_repository_impl.dart';
-import 'package:rsc_rider/features/dashboard/domain/repositories/dashboard_repository.dart';
-import 'package:rsc_rider/features/dashboard/domain/usecases/get_dashboard_summary_use_case.dart';
-import 'package:rsc_rider/features/dashboard/domain/usecases/set_availability_use_case.dart';
+// Real dashboard data layer — unused while the dashboard runs on mock data.
+// import 'package:rsc_rider/features/dashboard/data/datasources/dashboard_remote_data_source.dart';
+// import 'package:rsc_rider/features/dashboard/data/repositories/dashboard_repository_impl.dart';
+// import 'package:rsc_rider/features/dashboard/domain/repositories/dashboard_repository.dart';
+// import 'package:rsc_rider/features/dashboard/domain/usecases/get_dashboard_summary_use_case.dart';
+// import 'package:rsc_rider/features/dashboard/domain/usecases/set_availability_use_case.dart';
 import 'package:rsc_rider/features/dashboard/presentation/bloc/dashboard_bloc.dart';
 
 final GetIt getIt = GetIt.instance;
@@ -53,12 +55,12 @@ Future<void> setupDependencies({bool firebaseAvailable = false}) async {
     ..registerSingleton<SocketClient>(SocketClient(localStorage));
 
   // ── Services ───────────────────────────────────────────────────────────────
-  // NotificationService requires Firebase — skip if flutterfire not configured.
-  if (firebaseAvailable) {
-    getIt.registerSingleton<NotificationService>(
-      NotificationService(FirebaseMessaging.instance),
-    );
-  }
+  // NotificationService requires Firebase — disabled for now, commented out.
+  // if (firebaseAvailable) {
+  //   getIt.registerSingleton<NotificationService>(
+  //     NotificationService(FirebaseMessaging.instance),
+  //   );
+  // }
   getIt
     ..registerSingleton<LocationService>(LocationService())
     ..registerSingleton<DeepLinkService>(DeepLinkService());
@@ -83,11 +85,10 @@ void _registerAuth() {
     ..registerLazySingleton<AuthRemoteDataSource>(
       () => AuthRemoteDataSource(getIt<DioClient>()),
     )
+    // Mock for now — swap back to AuthRepositoryImpl once the rider auth
+    // endpoint is confirmed.
     ..registerLazySingleton<AuthRepository>(
-      () => AuthRepositoryImpl(
-        getIt<AuthRemoteDataSource>(),
-        getIt<LocalStorage>(),
-      ),
+      () => MockAuthRepository(getIt<LocalStorage>()),
     )
     ..registerLazySingleton<LoginUseCase>(
       () => LoginUseCase(getIt<AuthRepository>()),
@@ -104,23 +105,12 @@ void _registerAuth() {
 }
 
 void _registerDashboard() {
-  getIt
-    ..registerLazySingleton<DashboardRemoteDataSource>(
-      () => DashboardRemoteDataSource(getIt<DioClient>()),
-    )
-    ..registerLazySingleton<DashboardRepository>(
-      () => DashboardRepositoryImpl(getIt<DashboardRemoteDataSource>()),
-    )
-    ..registerLazySingleton<GetDashboardSummaryUseCase>(
-      () => GetDashboardSummaryUseCase(getIt<DashboardRepository>()),
-    )
-    ..registerLazySingleton<SetAvailabilityUseCase>(
-      () => SetAvailabilityUseCase(getIt<DashboardRepository>()),
-    )
-    ..registerFactory<DashboardBloc>(
-      () => DashboardBloc(
-        getDashboardSummary: getIt<GetDashboardSummaryUseCase>(),
-        setAvailability: getIt<SetAvailabilityUseCase>(),
-      ),
-    );
+  // Mock for now — swap back to the real repository/usecases above once the
+  // dashboard summary endpoint is confirmed.
+  getIt.registerFactory<DashboardBloc>(
+    () => DashboardBloc(
+      localStorage: getIt<LocalStorage>(),
+      locationService: getIt<LocationService>(),
+    ),
+  );
 }

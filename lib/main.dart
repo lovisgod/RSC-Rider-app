@@ -1,4 +1,4 @@
-import 'package:firebase_core/firebase_core.dart';
+// import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:rsc_rider/core/router/app_router.dart';
@@ -25,18 +25,18 @@ void main() async {
       String.fromEnvironment('FLAVOR', defaultValue: 'development');
   await dotenv.load(fileName: '.env.$flavor');
 
-  // Firebase requires flutterfire configure + google-services.json to be set up.
-  // Guard here so the app boots in development before that step is done.
-  var firebaseAvailable = false;
-  try {
-    await Firebase.initializeApp();
-    firebaseAvailable = true;
-  } catch (e) {
-    debugPrint(
-      '[RSC] Firebase not configured — run `flutterfire configure` '
-      'and add google-services.json. FCM notifications disabled. ($e)',
-    );
-  }
+  // Firebase disabled for now — commented out until flutterfire configure is run.
+  // var firebaseAvailable = false;
+  // try {
+  //   await Firebase.initializeApp();
+  //   firebaseAvailable = true;
+  // } catch (e) {
+  //   debugPrint(
+  //     '[RSC] Firebase not configured — run `flutterfire configure` '
+  //     'and add google-services.json. FCM notifications disabled. ($e)',
+  //   );
+  // }
+  const firebaseAvailable = false;
 
   await BackgroundLocationService.initialize();
   await setupDependencies(firebaseAvailable: firebaseAvailable);

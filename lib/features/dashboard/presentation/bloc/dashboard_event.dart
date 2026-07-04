@@ -23,3 +23,16 @@ final class DashboardAvailabilityToggled extends DashboardEvent {
   @override
   List<Object> get props => [isOnline];
 }
+
+final class DashboardLocationUpdated extends DashboardEvent {
+  const DashboardLocationUpdated({
+    required this.latitude,
+    required this.longitude,
+  });
+
+  final double latitude;
+  final double longitude;
+
+  @override
+  List<Object> get props => [latitude, longitude];
+}

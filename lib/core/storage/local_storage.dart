@@ -4,6 +4,7 @@ abstract final class StorageKeys {
   static const String accessToken = 'access_token';
   static const String refreshToken = 'refresh_token';
   static const String riderId = 'rider_id';
+  static const String riderName = 'rider_name';
 }
 
 class LocalStorage {
@@ -35,6 +36,10 @@ class LocalStorage {
   Future<void> saveRiderId(String id) => write(StorageKeys.riderId, id);
 
   Future<String?> getRiderId() => read(StorageKeys.riderId);
+
+  Future<void> saveRiderName(String name) => write(StorageKeys.riderName, name);
+
+  Future<String?> getRiderName() => read(StorageKeys.riderName);
 
   Future<bool> get hasValidSession async {
     final token = await getAccessToken();

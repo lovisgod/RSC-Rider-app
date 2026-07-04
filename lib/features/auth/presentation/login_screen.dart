@@ -146,12 +146,12 @@ class _BrandMark extends StatelessWidget {
             width: 52,
             height: 52,
             decoration: BoxDecoration(
-              color: AppColors.primary,
+              color: AppColors.navy,
               borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
             ),
             child: const Icon(
               Icons.delivery_dining,
-              color: AppColors.white,
+              color: AppColors.textOnDark,
               size: 30,
             ),
           ),

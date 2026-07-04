@@ -1,24 +1,26 @@
+import 'dart:async';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:rsc_rider/features/dashboard/domain/usecases/get_dashboard_summary_use_case.dart';
-import 'package:rsc_rider/features/dashboard/domain/usecases/set_availability_use_case.dart';
+import 'package:rsc_rider/core/mock/mock_dashboard.dart';
+import 'package:rsc_rider/core/services/location_service.dart';
+import 'package:rsc_rider/core/storage/local_storage.dart';
 import 'package:rsc_rider/features/dashboard/presentation/bloc/dashboard_event.dart';
 import 'package:rsc_rider/features/dashboard/presentation/bloc/dashboard_state.dart';
 
 class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
-  // ignore: prefer_initializing_formals — named params need public names for DI callers.
   DashboardBloc({
-    required GetDashboardSummaryUseCase getDashboardSummary,
-    required SetAvailabilityUseCase setAvailability,
-  })  : _getDashboardSummary = getDashboardSummary,
-        _setAvailability = setAvailability,
-        super(const DashboardInitial()) {
+    required this._localStorage,
+    required this._locationService,
+  }) : super(const DashboardInitial()) {
     on<DashboardStarted>(_onStarted);
     on<DashboardRefreshRequested>(_onRefreshRequested);
     on<DashboardAvailabilityToggled>(_onAvailabilityToggled);
+    on<DashboardLocationUpdated>(_onLocationUpdated);
   }
 
-  final GetDashboardSummaryUseCase _getDashboardSummary;
-  final SetAvailabilityUseCase _setAvailability;
+  final LocalStorage _localStorage;
+  final LocationService _locationService;
+  StreamSubscription? _positionSubscription;
 
   Future<void> _onStarted(
     DashboardStarted event,
@@ -26,8 +28,19 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
   ) async {
     emit(const DashboardLoading());
     try {
-      final summary = await _getDashboardSummary();
-      emit(DashboardLoaded(summary));
+      final riderName = await _localStorage.getRiderName() ?? 'Rider';
+      emit(
+        DashboardLoaded(
+          riderName: riderName,
+          riderInitials: _initialsOf(riderName),
+          todayEarnings: MockDashboard.todayEarnings,
+          todayDeliveries: MockDashboard.todayDeliveries,
+          weekEarnings: MockDashboard.weekEarnings,
+          weekDeliveries: MockDashboard.weekDeliveries,
+          isLoadingLocation: true,
+        ),
+      );
+      await _startLocationTracking(emit);
     } catch (e) {
       emit(DashboardError(e.toString()));
     }
@@ -37,12 +50,17 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     DashboardRefreshRequested event,
     Emitter<DashboardState> emit,
   ) async {
-    try {
-      final summary = await _getDashboardSummary();
-      emit(DashboardLoaded(summary));
-    } catch (_) {
-      // Keep showing existing data — the pull-to-refresh indicator just stops.
-    }
+    final current = state;
+    if (current is! DashboardLoaded) return;
+
+    emit(
+      current.copyWith(
+        todayEarnings: MockDashboard.todayEarnings,
+        todayDeliveries: MockDashboard.todayDeliveries,
+        weekEarnings: MockDashboard.weekEarnings,
+        weekDeliveries: MockDashboard.weekDeliveries,
+      ),
+    );
   }
 
   Future<void> _onAvailabilityToggled(
@@ -52,23 +70,74 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     final current = state;
     if (current is! DashboardLoaded) return;
 
-    emit(current.copyWith(isUpdatingAvailability: true, clearError: true));
-    try {
-      final status = await _setAvailability(isOnline: event.isOnline);
+    emit(
+      current.copyWith(
+        isOnline: event.isOnline,
+        nearbyKitchens:
+            event.isOnline ? MockDashboard.nearbyKitchens : const [],
+      ),
+    );
+  }
+
+  void _onLocationUpdated(
+    DashboardLocationUpdated event,
+    Emitter<DashboardState> emit,
+  ) {
+    final current = state;
+    if (current is! DashboardLoaded) return;
+
+    emit(
+      current.copyWith(
+        riderLatitude: event.latitude,
+        riderLongitude: event.longitude,
+      ),
+    );
+  }
+
+  Future<void> _startLocationTracking(Emitter<DashboardState> emit) async {
+    final permission = await _locationService.checkAndRequestPermission();
+    final current = state;
+    if (current is! DashboardLoaded) return;
+
+    if (permission != LocationPermissionStatus.granted) {
       emit(
         current.copyWith(
-          summary: current.summary.copyWith(status: status),
-          isUpdatingAvailability: false,
-          clearError: true,
+          isLoadingLocation: false,
+          locationError: 'Location permission denied.',
         ),
       );
-    } catch (e) {
-      emit(
-        current.copyWith(
-          isUpdatingAvailability: false,
-          availabilityError: e.toString(),
-        ),
-      );
+      return;
     }
+
+    final position = await _locationService.getCurrentPosition();
+    final withPosition = current.copyWith(
+      riderLatitude: position.latitude,
+      riderLongitude: position.longitude,
+      isLoadingLocation: false,
+      clearLocationError: true,
+    );
+    emit(withPosition);
+
+    await _positionSubscription?.cancel();
+    _positionSubscription = _locationService.positionStream.listen((position) {
+      add(
+        DashboardLocationUpdated(
+          latitude: position.latitude,
+          longitude: position.longitude,
+        ),
+      );
+    });
+  }
+
+  // First letter of each word in the name, max 2 characters.
+  String _initialsOf(String name) {
+    final words = name.trim().split(RegExp(r'\s+')).where((w) => w.isNotEmpty);
+    return words.take(2).map((w) => w[0].toUpperCase()).join();
+  }
+
+  @override
+  Future<void> close() {
+    _positionSubscription?.cancel();
+    return super.close();
   }
 }
