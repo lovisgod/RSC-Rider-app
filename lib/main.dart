@@ -1,6 +1,8 @@
+import 'package:cookie_jar/cookie_jar.dart';
 // import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:rsc_rider/core/router/app_router.dart';
 import 'package:rsc_rider/core/router/route_guards.dart';
 import 'package:rsc_rider/core/services/background_location_service.dart';
@@ -38,8 +40,18 @@ void main() async {
   // }
   const firebaseAvailable = false;
 
+  // Disk-backed so the rider's session cookie survives an app restart.
+  final appDocDir = await getApplicationDocumentsDirectory();
+  final cookieJar = PersistCookieJar(
+    ignoreExpires: true,
+    storage: FileStorage('${appDocDir.path}/.cookies/'),
+  );
+
   await BackgroundLocationService.initialize();
-  await setupDependencies(firebaseAvailable: firebaseAvailable);
+  await setupDependencies(
+    cookieJar: cookieJar,
+    firebaseAvailable: firebaseAvailable,
+  );
 
   runApp(RiderApp(router: AppRouter(getIt<AuthNotifier>())));
 }

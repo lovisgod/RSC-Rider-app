@@ -1,25 +1,18 @@
 import 'package:rsc_rider/features/auth/domain/entities/rider_entity.dart';
 
 class LoginResponseModel {
-  const LoginResponseModel({
-    required this.accessToken,
-    required this.refreshToken,
-    required this.riderId,
-    this.email = '',
-  });
+  const LoginResponseModel({required this.id, required this.role});
 
-  final String accessToken;
-  final String refreshToken;
-  final String riderId;
-  final String email;
+  final String id;
+  final String role;
 
-  factory LoginResponseModel.fromJson(Map<String, dynamic> json) =>
-      LoginResponseModel(
-        accessToken: json['access_token'] as String,
-        refreshToken: json['refresh_token'] as String,
-        riderId: json['rider_id'] as String,
-        email: json['email'] as String? ?? '',
-      );
+  factory LoginResponseModel.fromJson(Map<String, dynamic> json) {
+    final user = json['data']['user'] as Map<String, dynamic>;
+    return LoginResponseModel(
+      id: user['id'] as String,
+      role: user['role'] as String,
+    );
+  }
 
-  RiderEntity toEntity() => RiderEntity(riderId: riderId, email: email);
+  RiderEntity toEntity() => RiderEntity(riderId: id, role: role);
 }

@@ -1,14 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
+import 'package:rsc_rider/core/constants/app_colors.dart';
 import 'package:rsc_rider/core/router/route_guards.dart';
 import 'package:rsc_rider/core/router/route_names.dart';
 import 'package:rsc_rider/features/auth/presentation/login_screen.dart';
 import 'package:rsc_rider/features/auth/presentation/splash_screen.dart';
 import 'package:rsc_rider/features/dashboard/presentation/dashboard_screen.dart';
 import 'package:rsc_rider/features/delivery/presentation/active_delivery_screen.dart';
+import 'package:rsc_rider/features/delivery/presentation/screens/complete_delivery_screen.dart';
 import 'package:rsc_rider/features/dispatch/presentation/incoming_request_screen.dart';
 import 'package:rsc_rider/features/history/presentation/history_screen.dart';
+import 'package:rsc_rider/features/notifications/presentation/cubit/notifications_cubit.dart';
+import 'package:rsc_rider/features/notifications/presentation/cubit/notifications_state.dart';
 import 'package:rsc_rider/features/notifications/presentation/notifications_screen.dart';
+import 'package:rsc_rider/features/profile/presentation/change_password_screen.dart';
 import 'package:rsc_rider/features/profile/presentation/profile_screen.dart';
 
 class AppRouter {
@@ -78,6 +85,14 @@ class AppRouter {
         path: RouteNames.activeDelivery,
         builder: (context, state) => const ActiveDeliveryScreen(),
       ),
+      GoRoute(
+        path: RouteNames.changePassword,
+        builder: (context, state) => const ChangePasswordScreen(),
+      ),
+      GoRoute(
+        path: RouteNames.completeDelivery,
+        builder: (context, state) => const CompleteDeliveryScreen(),
+      ),
     ],
   );
 
@@ -113,28 +128,55 @@ class _AppShell extends StatelessWidget {
         bottomNavigationBar: NavigationBar(
           selectedIndex: shell.currentIndex,
           onDestinationSelected: shell.goBranch,
-          destinations: const [
-            NavigationDestination(
+          destinations: [
+            const NavigationDestination(
               icon: Icon(Icons.home_outlined),
               selectedIcon: Icon(Icons.home_rounded),
               label: 'Home',
             ),
-            NavigationDestination(
+            const NavigationDestination(
               icon: Icon(Icons.history_outlined),
               selectedIcon: Icon(Icons.history_rounded),
               label: 'History',
             ),
-            NavigationDestination(
+            const NavigationDestination(
               icon: Icon(Icons.person_outline_rounded),
               selectedIcon: Icon(Icons.person_rounded),
               label: 'Profile',
             ),
-            NavigationDestination(
-              icon: Icon(Icons.notifications_outlined),
-              selectedIcon: Icon(Icons.notifications_rounded),
+            const NavigationDestination(
+              icon: _AlertsIcon(icon: Icons.notifications_outlined),
+              selectedIcon: _AlertsIcon(icon: Icons.notifications_rounded),
               label: 'Alerts',
             ),
           ],
         ),
+      );
+}
+
+class _AlertsIcon extends StatelessWidget {
+  const _AlertsIcon({required this.icon});
+
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) =>
+      BlocBuilder<NotificationsCubit, NotificationsState>(
+        bloc: GetIt.instance<NotificationsCubit>(),
+        builder: (context, state) {
+          if (state.unreadCount == 0) return Icon(icon);
+          return Badge(
+            backgroundColor: AppColors.error,
+            label: Text(
+              state.unreadCount > 9 ? '9+' : '${state.unreadCount}',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            child: Icon(icon),
+          );
+        },
       );
 }

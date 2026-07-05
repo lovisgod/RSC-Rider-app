@@ -2,17 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:get_it/get_it.dart';
+import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:rsc_rider/core/constants/app_colors.dart';
 import 'package:rsc_rider/core/constants/app_spacing.dart';
 import 'package:rsc_rider/core/constants/app_strings.dart';
 import 'package:rsc_rider/core/constants/app_text_styles.dart';
 import 'package:rsc_rider/core/mock/mock_dashboard.dart';
+import 'package:rsc_rider/core/router/route_names.dart';
+import 'package:rsc_rider/core/services/location_service.dart';
 import 'package:rsc_rider/core/utils/formatters.dart';
 import 'package:rsc_rider/core/widgets/app_button.dart';
 import 'package:rsc_rider/core/widgets/app_loader.dart';
 import 'package:rsc_rider/core/widgets/app_snackbar.dart';
 import 'package:rsc_rider/core/widgets/error_view.dart';
+import 'package:rsc_rider/core/widgets/logout_confirmation_sheet.dart';
+import 'package:rsc_rider/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:rsc_rider/features/auth/presentation/bloc/auth_state.dart';
 import 'package:rsc_rider/features/dashboard/presentation/bloc/dashboard_bloc.dart';
 import 'package:rsc_rider/features/dashboard/presentation/bloc/dashboard_event.dart';
 import 'package:rsc_rider/features/dashboard/presentation/bloc/dashboard_state.dart';
@@ -32,9 +38,14 @@ class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
 
   @override
-  Widget build(BuildContext context) => BlocProvider(
-        create: (_) =>
-            GetIt.instance<DashboardBloc>()..add(const DashboardStarted()),
+  Widget build(BuildContext context) => MultiBlocProvider(
+        providers: [
+          BlocProvider(
+            create: (_) => GetIt.instance<DashboardBloc>()
+              ..add(const DashboardStarted()),
+          ),
+          BlocProvider(create: (_) => GetIt.instance<AuthBloc>()),
+        ],
         child: const _DashboardView(),
       );
 }
@@ -72,21 +83,42 @@ class _DashboardViewState extends State<_DashboardView> {
           _mapController.camera.zoom,
         );
       },
-      child: Scaffold(
-        body: BlocBuilder<DashboardBloc, DashboardState>(
-          builder: (context, state) {
-            return switch (state) {
-              DashboardInitial() || DashboardLoading() => const AppLoader(),
-              DashboardError(:final message) => ErrorView(
-                  message: message,
-                  onRetry: () => context
-                      .read<DashboardBloc>()
-                      .add(const DashboardStarted()),
-                ),
-              DashboardLoaded() =>
-                _MapDashboard(state: state, mapController: _mapController),
-            };
-          },
+      child: BlocListener<AuthBloc, AuthState>(
+        listener: (context, state) {
+          if (state is AuthUnauthenticated) context.go(RouteNames.login);
+        },
+        child: Scaffold(
+          body: Stack(
+            children: [
+              BlocBuilder<DashboardBloc, DashboardState>(
+                builder: (context, state) {
+                  return switch (state) {
+                    DashboardInitial() ||
+                    DashboardLoading() =>
+                      const AppLoader(),
+                    DashboardError(:final message) => ErrorView(
+                        message: message,
+                        onRetry: () => context
+                            .read<DashboardBloc>()
+                            .add(const DashboardStarted()),
+                      ),
+                    DashboardLoaded() => _MapDashboard(
+                        state: state,
+                        mapController: _mapController,
+                      ),
+                  };
+                },
+              ),
+              BlocBuilder<AuthBloc, AuthState>(
+                builder: (context, state) => state is AuthLoading
+                    ? const ColoredBox(
+                        color: Color(0x33000000),
+                        child: Center(child: AppLoader()),
+                      )
+                    : const SizedBox.shrink(),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -320,6 +352,12 @@ class _TopBar extends StatelessWidget {
                                 : AppColors.offlineRed,
                           ),
                         ),
+                        if (state.isOnline) ...[
+                          const SizedBox(height: AppSpacing.xs),
+                          _BroadcastIndicator(
+                            hasLocationError: state.locationError != null,
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -331,11 +369,72 @@ class _TopBar extends StatelessWidget {
                       color: AppColors.textOnDark,
                     ),
                   ),
+                  IconButton(
+                    onPressed: () => showLogoutConfirmationSheet(context),
+                    icon: const Icon(
+                      Icons.logout,
+                      color: AppColors.textOnDark,
+                      size: 22,
+                    ),
+                  ),
                 ],
               ),
             ),
           ),
         ),
+      );
+}
+
+class _BroadcastIndicator extends StatelessWidget {
+  const _BroadcastIndicator({required this.hasLocationError});
+
+  final bool hasLocationError;
+
+  @override
+  Widget build(BuildContext context) {
+    if (hasLocationError) {
+      return GestureDetector(
+        onTap: () => GetIt.instance<LocationService>().openAppSettings(),
+        child: Text(
+          AppStrings.locationAccessNeeded,
+          style: AppTextStyles.labelSmall.copyWith(color: AppColors.warning),
+        ),
+      );
+    }
+    return _PulsingText(
+      text: AppStrings.broadcastingLocation,
+      style: AppTextStyles.labelSmall.copyWith(color: AppColors.onlineGreen),
+    );
+  }
+}
+
+class _PulsingText extends StatefulWidget {
+  const _PulsingText({required this.text, required this.style});
+
+  final String text;
+  final TextStyle style;
+
+  @override
+  State<_PulsingText> createState() => _PulsingTextState();
+}
+
+class _PulsingTextState extends State<_PulsingText>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => FadeTransition(
+        opacity: Tween(begin: 0.35, end: 1.0).animate(_controller),
+        child: Text(widget.text, style: widget.style),
       );
 }
 
@@ -461,9 +560,8 @@ class _BottomPanel extends StatelessWidget {
               const SizedBox(height: AppSpacing.md),
               if (state.isOnline)
                 AppButton(
-                  label: AppStrings.viewIncomingOrders,
-                  onPressed: () =>
-                      AppSnackbar.showInfo(context, AppStrings.comingSoon),
+                  label: AppStrings.completeADelivery,
+                  onPressed: () => context.push(RouteNames.completeDelivery),
                 )
               else
                 SizedBox(

@@ -42,6 +42,10 @@ class ErrorInterceptor extends Interceptor {
     try {
       final data = response?.data;
       if (data is Map<String, dynamic>) {
+        final errors = data['errors'];
+        if (errors is List && errors.isNotEmpty) {
+          return errors.first.toString();
+        }
         return data['message'] as String? ?? data['error'] as String?;
       }
     } catch (_) {}

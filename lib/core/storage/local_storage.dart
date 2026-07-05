@@ -5,6 +5,9 @@ abstract final class StorageKeys {
   static const String refreshToken = 'refresh_token';
   static const String riderId = 'rider_id';
   static const String riderName = 'rider_name';
+  static const String riderRole = 'rider_role';
+  static const String isOnline = 'rider_is_online';
+  static const String activeMasterOrderId = 'active_master_order_id';
 }
 
 class LocalStorage {
@@ -41,9 +44,30 @@ class LocalStorage {
 
   Future<String?> getRiderName() => read(StorageKeys.riderName);
 
+  Future<void> saveRiderRole(String role) => write(StorageKeys.riderRole, role);
+
+  Future<String?> getRiderRole() => read(StorageKeys.riderRole);
+
+  Future<void> saveOnlineStatus(bool isOnline) =>
+      write(StorageKeys.isOnline, isOnline.toString());
+
+  Future<bool> getOnlineStatus() async =>
+      (await read(StorageKeys.isOnline)) == 'true';
+
+  Future<void> saveActiveMasterOrderId(String id) =>
+      write(StorageKeys.activeMasterOrderId, id);
+
+  Future<String?> getActiveMasterOrderId() =>
+      read(StorageKeys.activeMasterOrderId);
+
+  Future<void> clearActiveMasterOrderId() =>
+      delete(StorageKeys.activeMasterOrderId);
+
+  // The rider auth session is cookie-based — the app never sees a token, so
+  // rider_id (saved right after a successful login) is the session signal.
   Future<bool> get hasValidSession async {
-    final token = await getAccessToken();
-    return token != null && token.isNotEmpty;
+    final riderId = await getRiderId();
+    return riderId != null && riderId.isNotEmpty;
   }
 
   Future<void> clearSession() => deleteAll();

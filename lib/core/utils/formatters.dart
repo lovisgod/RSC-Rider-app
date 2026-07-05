@@ -2,8 +2,12 @@ import 'package:intl/intl.dart';
 
 abstract final class AppFormatters {
   // Currency — defaults to Naira (₦)
-  static String currency(double amount, {String symbol = '₦'}) =>
-      '$symbol${NumberFormat('#,##0.00').format(amount)}';
+  static String currency(
+    double amount, {
+    String symbol = '₦',
+    bool decimals = true,
+  }) =>
+      '$symbol${NumberFormat(decimals ? '#,##0.00' : '#,##0').format(amount)}';
 
   // Distance — meters → "350m" or "1.4km"
   static String distance(double meters) {
@@ -22,6 +26,9 @@ abstract final class AppFormatters {
 
   // Date — "23 Jun 2026"
   static String date(DateTime dt) => DateFormat('d MMM yyyy').format(dt);
+
+  // Short date — "Jul 4, 2026"
+  static String shortDate(DateTime dt) => DateFormat('MMM d, yyyy').format(dt);
 
   // Time — "2:30 PM"
   static String time(DateTime dt) => DateFormat('h:mm a').format(dt);

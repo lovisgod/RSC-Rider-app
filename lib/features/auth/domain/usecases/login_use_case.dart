@@ -6,6 +6,9 @@ class LoginUseCase {
 
   final AuthRepository _repository;
 
-  Future<RiderEntity> call({required String email, required String password}) =>
-      _repository.login(email: email, password: password);
+  Future<RiderEntity> call({
+    required String identifier,
+    required String password,
+  }) =>
+      _repository.login(identifier: identifier, password: password);
 }

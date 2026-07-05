@@ -12,17 +12,23 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<RiderEntity> login({
-    required String email,
+    required String identifier,
     required String password,
   }) async {
     final response = await _dataSource.login(
-      LoginRequestModel(email: email, password: password),
+      LoginRequestModel(identifier: identifier, password: password),
     );
-    await _storage.saveTokens(
-      accessToken: response.accessToken,
-      refreshToken: response.refreshToken,
-    );
-    await _storage.saveRiderId(response.riderId);
+
+    if (response.role != 'RIDER') {
+      throw Exception(
+        'This account is not a rider account. Please use the customer app.',
+      );
+    }
+
+    await _storage.saveRiderId(response.id);
+    await _storage.saveRiderRole(response.role);
+    // The rider's name/email/phone now come from GET /users/me, fetched by
+    // DashboardBloc on start — no need to cache a name here.
     return response.toEntity();
   }
 
@@ -30,8 +36,9 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<void> logout() async {
     try {
       await _dataSource.logout();
+    } catch (_) {
+      // Never block logout on a network failure — local state still clears.
     } finally {
-      // Always clear local session even if the API call fails.
       await _storage.clearSession();
     }
   }

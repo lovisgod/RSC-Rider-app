@@ -3,9 +3,8 @@ import 'package:rsc_rider/core/storage/local_storage.dart';
 import 'package:rsc_rider/features/auth/domain/entities/rider_entity.dart';
 import 'package:rsc_rider/features/auth/domain/repositories/auth_repository.dart';
 
-// Returns fixed mock data instead of calling the real API — the rider auth
-// endpoint isn't confirmed yet. Swap back to AuthRepositoryImpl in di.dart
-// once it is.
+// Returns fixed mock data instead of calling the real API. Kept around
+// (unregistered in di.dart) as an easy fallback if the real endpoint breaks.
 class MockAuthRepository implements AuthRepository {
   const MockAuthRepository(this._storage);
 
@@ -13,17 +12,14 @@ class MockAuthRepository implements AuthRepository {
 
   @override
   Future<RiderEntity> login({
-    required String email,
+    required String identifier,
     required String password,
   }) async {
     await Future.delayed(const Duration(milliseconds: 1200));
-    await _storage.saveTokens(
-      accessToken: 'mock_access_token',
-      refreshToken: 'mock_refresh_token',
-    );
     await _storage.saveRiderId(MockRider.id);
+    await _storage.saveRiderRole(MockRider.role);
     await _storage.saveRiderName(MockRider.name);
-    return RiderEntity(riderId: MockRider.id, email: email);
+    return const RiderEntity(riderId: MockRider.id, role: MockRider.role);
   }
 
   @override

@@ -12,8 +12,10 @@ abstract final class RouteNames {
   // Full-screen flows (require auth, no bottom nav)
   static const String incomingRequest = '/dispatch/request';
   static const String activeDelivery = '/delivery/active';
+  static const String completeDelivery = '/complete-delivery';
 
   // Profile sub-routes
   static const String editProfile = '/profile/edit';
   static const String documents = '/profile/documents';
+  static const String changePassword = '/profile/change-password';
 }
