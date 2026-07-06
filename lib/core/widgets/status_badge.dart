@@ -11,12 +11,9 @@ class StatusBadge extends StatelessWidget {
 
   final OrderStatus status;
 
-  Color get _bg => switch (status) {
-        OrderStatus.pending => AppColors.warningLight,
-        OrderStatus.inProgress => AppColors.infoLight,
-        OrderStatus.completed => AppColors.successLight,
-        OrderStatus.cancelled => AppColors.errorLight,
-      };
+  // No light-tint constants remain in the palette, so tint the base
+  // semantic color instead of hardcoding a new hex value.
+  Color get _bg => _fg.withValues(alpha: 0.12);
 
   Color get _fg => switch (status) {
         OrderStatus.pending => AppColors.warning,

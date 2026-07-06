@@ -11,9 +11,11 @@ class LocationService {
         ),
       );
 
-  Future<Position> getCurrentPosition() => Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
+  Future<Position> getCurrentPosition({Duration? timeLimit}) =>
+      Geolocator.getCurrentPosition(
+        locationSettings: LocationSettings(
           accuracy: LocationAccuracy.high,
+          timeLimit: timeLimit,
         ),
       );
 
@@ -43,6 +45,9 @@ class LocationService {
 
   // Opens the device location settings screen.
   Future<bool> openSettings() => Geolocator.openLocationSettings();
+
+  // Opens this app's OS settings screen (e.g. to grant a denied permission).
+  Future<bool> openAppSettings() => Geolocator.openAppSettings();
 }
 
 enum LocationPermissionStatus {

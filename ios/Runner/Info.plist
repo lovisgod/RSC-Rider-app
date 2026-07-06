@@ -66,5 +66,13 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>RSC Rider needs your location to show your position on the map.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>RSC Rider needs your location to track deliveries in the background.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>RSC Rider needs camera to update your profile photo.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>RSC Rider needs photo library to update your profile photo.</string>
 </dict>
 </plist>

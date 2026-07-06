@@ -3,6 +3,11 @@ abstract final class ApiEndpoints {
   static const String login = '/auth/login';
   static const String logout = '/auth/logout';
   static const String refreshToken = '/auth/refresh';
+  static const String changePassword = '/auth/change-password';
+
+  // User
+  static const String userMe = '/users/me';
+  static const String uploadAvatar = '/users/me/avatar';
 
   // Rider
   static const String riderProfile = '/rider/profile';
@@ -10,6 +15,7 @@ abstract final class ApiEndpoints {
   static const String earnings = '/rider/earnings';
   static const String documents = '/rider/documents';
   static const String registerFcmToken = '/rider/fcm-token';
+  static const String recordRiderLocation = '/riders/locations';
 
   // Dispatch
   static const String dispatchRequests = '/dispatch/requests';
@@ -21,8 +27,13 @@ abstract final class ApiEndpoints {
   static String deliveryById(String id) => '/deliveries/$id';
   static String updateDeliveryStatus(String id) => '/deliveries/$id/status';
   static String updateRiderLocation(String id) => '/deliveries/$id/location';
-  static String completeDelivery(String id) => '/deliveries/$id/complete';
+  static String completeDelivery(String orderId) =>
+      '/orders/$orderId/complete-delivery';
 
   // History
-  static const String deliveryHistory = '/deliveries/history';
+  static const String riderDeliveries = '/riders/me/deliveries';
+
+  // Notifications
+  static const String notifications = '/notifications';
+  static String markNotificationRead(String id) => '/notifications/$id/read';
 }

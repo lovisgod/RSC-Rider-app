@@ -1,13 +1,14 @@
+import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio/dio.dart';
+import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:rsc_rider/core/network/auth_interceptor.dart';
 import 'package:rsc_rider/core/network/error_interceptor.dart';
 
 class DioClient {
   DioClient({
-    required AuthInterceptor authInterceptor,
     required ErrorInterceptor errorInterceptor,
+    required CookieJar cookieJar,
   }) {
     final baseUrl = dotenv.env['API_BASE_URL'] ?? '';
     final timeoutSecs =
@@ -28,40 +29,24 @@ class DioClient {
     );
 
     _dio.interceptors.addAll([
-      authInterceptor,
-      errorInterceptor,
+      // Captures Set-Cookie on responses and attaches Cookie on requests —
+      // the rider auth session is carried entirely via HttpOnly cookies.
+      // Never set a cookie or Authorization header manually — this is the
+      // only place a session is attached.
+      CookieManager(cookieJar),
       if (kDebugMode)
         LogInterceptor(
           requestBody: true,
           responseBody: true,
-          logPrint: (o) => debugPrint(o.toString()),
+          requestHeader: true,
+          responseHeader: false,
+          logPrint: (log) => debugPrint(log.toString()),
         ),
+      errorInterceptor,
     ]);
   }
 
   late final Dio _dio;
 
   Dio get dio => _dio;
-
-  // Convenience factory for a plain Dio used by AuthInterceptor's refresh calls.
-  // Has no interceptors — only base options — so refresh never triggers itself.
-  static Dio buildRefreshDio() {
-    final baseUrl = dotenv.env['API_BASE_URL'] ?? '';
-    final timeoutSecs =
-        int.tryParse(dotenv.env['API_TIMEOUT_SECONDS'] ?? '30') ?? 30;
-    final timeout = Duration(seconds: timeoutSecs);
-
-    return Dio(
-      BaseOptions(
-        baseUrl: baseUrl,
-        connectTimeout: timeout,
-        receiveTimeout: timeout,
-        sendTimeout: timeout,
-        headers: const {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-      ),
-    );
-  }
 }

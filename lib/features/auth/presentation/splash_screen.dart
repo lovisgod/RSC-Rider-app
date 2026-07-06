@@ -12,7 +12,7 @@ class SplashScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        backgroundColor: AppColors.primary,
+        backgroundColor: AppColors.navy,
         body: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -21,12 +21,12 @@ class SplashScreen extends StatelessWidget {
                 width: 80,
                 height: 80,
                 decoration: BoxDecoration(
-                  color: AppColors.white.withValues(alpha: 0.15),
+                  color: AppColors.textOnDark.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
                 ),
                 child: const Icon(
                   Icons.delivery_dining,
-                  color: AppColors.white,
+                  color: AppColors.textOnDark,
                   size: 48,
                 ),
               ),
@@ -34,11 +34,11 @@ class SplashScreen extends StatelessWidget {
               Text(
                 AppStrings.appName,
                 style: AppTextStyles.displayMedium.copyWith(
-                  color: AppColors.white,
+                  color: AppColors.textOnDark,
                 ),
               ),
               const SizedBox(height: AppSpacing.xxl),
-              const AppLoader(color: AppColors.white),
+              const AppLoader(color: AppColors.textOnDark),
             ],
           ),
         ),

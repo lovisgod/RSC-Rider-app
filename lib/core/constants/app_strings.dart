@@ -5,10 +5,15 @@ abstract final class AppStrings {
   static const String login = 'Log In';
   static const String logout = 'Log Out';
   static const String email = 'Email';
+  static const String identifierLabel = 'Email or Phone';
   static const String password = 'Password';
   static const String forgotPassword = 'Forgot password?';
   static const String loggingIn = 'Logging in…';
   static const String invalidCredentials = 'Invalid email or password.';
+  static const String notARiderAccount =
+      'This is a rider-only app. Please use the RSC customer app to order food.';
+  static const String logOutConfirmMessage =
+      'Are you sure you want to log out?';
 
   // Dashboard
   static const String goOnline = 'Go Online';
@@ -19,6 +24,23 @@ abstract final class AppStrings {
   static const String weekEarnings = 'This Week';
   static const String totalDeliveries = 'Total Deliveries';
   static const String todayDeliveries = 'Today';
+  static const String availability = 'Availability';
+  static const String onlineSubtitle = 'You are online and visible to kitchens';
+  static const String offlineSubtitle =
+      'You are offline. Go online to receive orders';
+  static const String todayEarningsLabel = 'TODAY';
+  static const String weekEarningsLabel = 'THIS WEEK';
+  static const String deliveries = 'deliveries';
+  static const String viewIncomingOrders = 'View Incoming Orders →';
+  static const String goOnlineToStart = 'Go Online to Start';
+  static const String youAreOfflineMap = 'You are offline';
+  static const String toggleToGoOnline = 'Toggle availability to go online';
+  static const String centerOnMe = 'Center on me';
+  static const String goodMorning = 'Good morning';
+  static const String broadcastingLocation = '● Broadcasting location';
+  static const String locationAccessNeeded = '⚠ Location access needed';
+  static const String goodAfternoon = 'Good afternoon';
+  static const String goodEvening = 'Good evening';
 
   // Dispatch
   static const String newDelivery = 'New Delivery Request';
@@ -42,6 +64,27 @@ abstract final class AppStrings {
   static const String navigate = 'Navigate';
   static const String confirmDeliveryPrompt =
       'Confirm that you have delivered this order to the customer.';
+  static const String completeDelivery = 'Complete Delivery';
+  static const String completeADelivery = '📦 Complete a Delivery';
+  static const String enterDeliveryDetails = 'Enter Delivery Details';
+  static const String enterDetailsSubtitle =
+      "Enter the order ID and the 6-digit code shown on the customer's "
+      'app to confirm delivery.';
+  static const String orderId = 'ORDER ID';
+  static const String orderIdHint = 'e.g. 870622ab-f679-44d8...';
+  static const String customerDeliveryCode = 'CUSTOMER DELIVERY CODE';
+  static const String verifying = 'Verifying...';
+  static const String backToDashboard = 'Back to Dashboard';
+  static const String pleaseEnterOrderId = 'Please enter the order ID';
+  static const String codeMustBeSixDigits = 'Delivery code must be 6 digits';
+  static const String invalidDeliveryCode =
+      'Invalid delivery code. Please check the code with the customer.';
+  static const String orderNotAssigned = 'This order is not assigned to you.';
+  static const String orderNotFound =
+      'Order not found. Please check the order ID.';
+  static const String orderLabel = 'ORDER';
+  static const String addressLabel = 'ADDRESS';
+  static const String earningsLabel = 'EARNINGS';
 
   // Delivery status labels
   static const String statusPending = 'Pending';
@@ -54,6 +97,10 @@ abstract final class AppStrings {
   static const String noDeliveriesYet = 'No deliveries yet';
   static const String noDeliveriesSubtitle =
       'Your completed deliveries will appear here.';
+  static const String completeFirstDelivery =
+      'Complete your first delivery to see your history here';
+  static const String totalEarnings = 'TOTAL EARNINGS';
+  static const String thisSession = 'THIS SESSION';
 
   // Profile
   static const String profile = 'Profile';
@@ -64,10 +111,30 @@ abstract final class AppStrings {
   static const String vehicleType = 'Vehicle Type';
   static const String save = 'Save';
   static const String cancel = 'Cancel';
+  static const String accountInformation = 'ACCOUNT INFORMATION';
+  static const String security = 'SECURITY';
+  static const String saveChanges = 'Save Changes';
+  static const String changePassword = 'Change Password';
+  static const String updatePassword = 'Update Password';
+  static const String profileUpdated = '✓ Profile updated';
+  static const String passwordUpdated = '✓ Password updated';
+  static const String currentPassword = 'CURRENT PASSWORD';
+  static const String newPassword = 'NEW PASSWORD';
+  static const String confirmNewPassword = 'CONFIRM NEW PASSWORD';
+  static const String passwordsDoNotMatch = 'Passwords do not match';
+  static const String passwordTooShort = 'Min 6 characters';
+  static const String newPasswordSameAsCurrent =
+      'Must be different from current';
+  static const String takePhoto = '📷 Take Photo';
+  static const String chooseFromGallery = '🖼️ Choose from Gallery';
 
   // Notifications
   static const String notifications = 'Notifications';
   static const String noNotifications = 'No notifications';
+  static const String markAllRead = 'Mark all read';
+  static const String noNotificationsYet = 'No notifications yet';
+  static const String orderUpdatesHere = 'Order updates will appear here';
+  static const String yesterday = 'Yesterday';
 
   // Common
   static const String loading = 'Loading…';

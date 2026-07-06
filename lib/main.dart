@@ -1,6 +1,8 @@
-import 'package:firebase_core/firebase_core.dart';
+import 'package:cookie_jar/cookie_jar.dart';
+// import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:rsc_rider/core/router/app_router.dart';
 import 'package:rsc_rider/core/router/route_guards.dart';
 import 'package:rsc_rider/core/services/background_location_service.dart';
@@ -25,21 +27,31 @@ void main() async {
       String.fromEnvironment('FLAVOR', defaultValue: 'development');
   await dotenv.load(fileName: '.env.$flavor');
 
-  // Firebase requires flutterfire configure + google-services.json to be set up.
-  // Guard here so the app boots in development before that step is done.
-  var firebaseAvailable = false;
-  try {
-    await Firebase.initializeApp();
-    firebaseAvailable = true;
-  } catch (e) {
-    debugPrint(
-      '[RSC] Firebase not configured — run `flutterfire configure` '
-      'and add google-services.json. FCM notifications disabled. ($e)',
-    );
-  }
+  // Firebase disabled for now — commented out until flutterfire configure is run.
+  // var firebaseAvailable = false;
+  // try {
+  //   await Firebase.initializeApp();
+  //   firebaseAvailable = true;
+  // } catch (e) {
+  //   debugPrint(
+  //     '[RSC] Firebase not configured — run `flutterfire configure` '
+  //     'and add google-services.json. FCM notifications disabled. ($e)',
+  //   );
+  // }
+  const firebaseAvailable = false;
+
+  // Disk-backed so the rider's session cookie survives an app restart.
+  final appDocDir = await getApplicationDocumentsDirectory();
+  final cookieJar = PersistCookieJar(
+    ignoreExpires: true,
+    storage: FileStorage('${appDocDir.path}/.cookies/'),
+  );
 
   await BackgroundLocationService.initialize();
-  await setupDependencies(firebaseAvailable: firebaseAvailable);
+  await setupDependencies(
+    cookieJar: cookieJar,
+    firebaseAvailable: firebaseAvailable,
+  );
 
   runApp(RiderApp(router: AppRouter(getIt<AuthNotifier>())));
 }

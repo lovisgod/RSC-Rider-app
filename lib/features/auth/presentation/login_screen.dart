@@ -32,13 +32,13 @@ class _LoginView extends StatefulWidget {
 
 class _LoginViewState extends State<_LoginView> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
+  final _identifierController = TextEditingController();
   final _passwordController = TextEditingController();
   final _passwordFocus = FocusNode();
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _identifierController.dispose();
     _passwordController.dispose();
     _passwordFocus.dispose();
     super.dispose();
@@ -48,7 +48,7 @@ class _LoginViewState extends State<_LoginView> {
     if (!_formKey.currentState!.validate()) return;
     context.read<AuthBloc>().add(
           AuthLoginRequested(
-            email: _emailController.text.trim(),
+            identifier: _identifierController.text.trim(),
             password: _passwordController.text,
           ),
         );
@@ -94,13 +94,13 @@ class _LoginViewState extends State<_LoginView> {
                       ),
                       const SizedBox(height: AppSpacing.xl),
                       AppTextField(
-                        controller: _emailController,
-                        label: AppStrings.email,
-                        prefixIcon: Icons.email_outlined,
-                        keyboardType: TextInputType.emailAddress,
+                        controller: _identifierController,
+                        label: AppStrings.identifierLabel,
+                        prefixIcon: Icons.person_outline,
+                        keyboardType: TextInputType.text,
                         textInputAction: TextInputAction.next,
                         enabled: !isLoading,
-                        validator: Validators.email,
+                        validator: Validators.required,
                         onFieldSubmitted: (_) =>
                             _passwordFocus.requestFocus(),
                       ),
@@ -146,12 +146,12 @@ class _BrandMark extends StatelessWidget {
             width: 52,
             height: 52,
             decoration: BoxDecoration(
-              color: AppColors.primary,
+              color: AppColors.navy,
               borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
             ),
             child: const Icon(
               Icons.delivery_dining,
-              color: AppColors.white,
+              color: AppColors.textOnDark,
               size: 30,
             ),
           ),

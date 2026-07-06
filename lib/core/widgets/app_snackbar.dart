@@ -28,13 +28,13 @@ abstract final class AppSnackbar {
         SnackBar(
           content: Row(
             children: [
-              Icon(icon, color: AppColors.white, size: AppSpacing.iconMd),
+              Icon(icon, color: AppColors.textOnDark, size: AppSpacing.iconMd),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
                   message,
                   style: AppTextStyles.bodyMedium.copyWith(
-                    color: AppColors.white,
+                    color: AppColors.textOnDark,
                   ),
                 ),
               ),
