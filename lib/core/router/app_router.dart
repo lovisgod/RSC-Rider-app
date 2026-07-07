@@ -24,7 +24,13 @@ class AppRouter {
 
   final AuthNotifier _authNotifier;
 
+  // Exposed so code outside the widget tree (e.g. NotificationService
+  // handling a notification tap) can still navigate.
+  static final GlobalKey<NavigatorState> rootNavigatorKey =
+      GlobalKey<NavigatorState>();
+
   late final GoRouter router = GoRouter(
+    navigatorKey: rootNavigatorKey,
     initialLocation: RouteNames.splash,
     refreshListenable: _authNotifier,
     redirect: _redirect,

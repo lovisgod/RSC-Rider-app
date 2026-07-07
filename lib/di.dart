@@ -1,5 +1,5 @@
 import 'package:cookie_jar/cookie_jar.dart';
-// import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get_it/get_it.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -10,7 +10,7 @@ import 'package:rsc_rider/core/router/route_guards.dart';
 import 'package:rsc_rider/core/services/deep_link_service.dart';
 import 'package:rsc_rider/core/services/location_broadcasting_service.dart';
 import 'package:rsc_rider/core/services/location_service.dart';
-// import 'package:rsc_rider/core/services/notification_service.dart';
+import 'package:rsc_rider/core/services/notification_service.dart';
 import 'package:rsc_rider/core/services/routing_service.dart';
 import 'package:rsc_rider/core/storage/cache_manager.dart';
 import 'package:rsc_rider/core/storage/local_storage.dart';
@@ -88,12 +88,11 @@ Future<void> setupDependencies({
     ..registerSingleton<SocketClient>(SocketClient(localStorage));
 
   // ── Services ───────────────────────────────────────────────────────────────
-  // NotificationService requires Firebase — disabled for now, commented out.
-  // if (firebaseAvailable) {
-  //   getIt.registerSingleton<NotificationService>(
-  //     NotificationService(FirebaseMessaging.instance),
-  //   );
-  // }
+  if (firebaseAvailable) {
+    getIt.registerLazySingleton<NotificationService>(
+      () => NotificationService(FirebaseMessaging.instance, getIt<DioClient>()),
+    );
+  }
   getIt
     ..registerSingleton<LocationService>(LocationService())
     ..registerSingleton<DeepLinkService>(DeepLinkService())

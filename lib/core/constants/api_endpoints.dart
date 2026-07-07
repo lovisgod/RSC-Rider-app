@@ -14,7 +14,6 @@ abstract final class ApiEndpoints {
   static const String toggleAvailability = '/rider/availability';
   static const String earnings = '/rider/earnings';
   static const String documents = '/rider/documents';
-  static const String registerFcmToken = '/rider/fcm-token';
   static const String recordRiderLocation = '/riders/locations';
 
   // Dispatch
@@ -42,4 +41,5 @@ abstract final class ApiEndpoints {
   // Notifications
   static const String notifications = '/notifications';
   static String markNotificationRead(String id) => '/notifications/$id/read';
+  static const String deviceToken = '/notifications/device-token';
 }

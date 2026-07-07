@@ -7,6 +7,7 @@ import 'package:rsc_rider/core/constants/app_strings.dart';
 import 'package:rsc_rider/core/network/api_response.dart';
 import 'package:rsc_rider/core/router/route_guards.dart';
 import 'package:rsc_rider/core/services/location_broadcasting_service.dart';
+import 'package:rsc_rider/core/services/notification_service.dart';
 import 'package:rsc_rider/features/auth/domain/usecases/login_use_case.dart';
 import 'package:rsc_rider/features/auth/domain/usecases/logout_use_case.dart';
 import 'package:rsc_rider/features/auth/presentation/bloc/auth_event.dart';
@@ -40,6 +41,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       // Fire-and-forget — so the unread badge is ready by the time the
       // rider reaches the dashboard.
       unawaited(GetIt.instance<NotificationsCubit>().loadNotifications());
+      // Re-registers the FCM token so it's associated with this rider's
+      // session. Fire-and-forget — a failure here must never block login.
+      if (GetIt.instance.isRegistered<NotificationService>()) {
+        unawaited(GetIt.instance<NotificationService>().refreshAndSaveToken());
+      }
       emit(AuthAuthenticated(rider));
     } catch (e) {
       emit(AuthFailure(_messageOf(e)));

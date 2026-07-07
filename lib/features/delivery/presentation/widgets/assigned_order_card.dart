@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:go_router/go_router.dart';
 import 'package:rsc_rider/core/constants/app_colors.dart';
 import 'package:rsc_rider/core/constants/app_spacing.dart';
 import 'package:rsc_rider/core/constants/app_strings.dart';
 import 'package:rsc_rider/core/constants/app_text_styles.dart';
-import 'package:rsc_rider/core/router/route_names.dart';
 import 'package:rsc_rider/features/delivery/domain/entities/assigned_order_entity.dart';
 import 'package:rsc_rider/features/delivery/presentation/cubit/active_orders_cubit.dart';
 import 'package:rsc_rider/features/delivery/presentation/widgets/reject_order_bottom_sheet.dart';
@@ -103,15 +101,24 @@ class AssignedOrderCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: AppSpacing.xs),
-            Text(
-              order.allItemsSummary,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppTextStyles.bodySmall.copyWith(
-                color: AppColors.textSecondary,
-                fontStyle: FontStyle.italic,
+            if (order.totalItems > 0)
+              Text(
+                order.allItemsSummary,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.textSecondary,
+                  fontStyle: FontStyle.italic,
+                ),
+              )
+            else
+              Text(
+                'Items: Loading...',
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.textHint,
+                  fontStyle: FontStyle.italic,
+                ),
               ),
-            ),
             const SizedBox(height: AppSpacing.md),
             Row(
               children: [
@@ -131,10 +138,10 @@ class AssignedOrderCard extends StatelessWidget {
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: () {
-                      context.read<ActiveOrdersCubit>().startDelivery(order);
-                      context.push(RouteNames.activeDelivery, extra: order);
-                    },
+                    // startDelivery fetches full item details when needed
+                    // and navigates to ActiveDeliveryScreen itself.
+                    onPressed: () =>
+                        context.read<ActiveOrdersCubit>().startDelivery(order),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.navy,
                       foregroundColor: AppColors.textOnDark,

@@ -1,24 +1,20 @@
 import 'package:cookie_jar/cookie_jar.dart';
-// import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:rsc_rider/core/router/app_router.dart';
 import 'package:rsc_rider/core/router/route_guards.dart';
 import 'package:rsc_rider/core/services/background_location_service.dart';
+import 'package:rsc_rider/core/services/notification_service.dart';
 import 'package:rsc_rider/core/theme/app_theme.dart';
 import 'package:rsc_rider/core/theme/dark_theme.dart';
 import 'package:rsc_rider/di.dart';
+import 'package:rsc_rider/firebase_options.dart';
 
 // ── Flavors ────────────────────────────────────────────────────────────────────
 // Development : flutter run  --dart-define=FLAVOR=development
 // Production  : flutter build --dart-define=FLAVOR=production
-//
-// ── Firebase ───────────────────────────────────────────────────────────────────
-// Run `flutterfire configure` to generate lib/firebase_options.dart, then:
-//   1. Add: import 'package:rsc_rider/firebase_options.dart';
-//   2. Change Firebase.initializeApp() to:
-//      Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform)
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,18 +23,16 @@ void main() async {
       String.fromEnvironment('FLAVOR', defaultValue: 'development');
   await dotenv.load(fileName: '.env.$flavor');
 
-  // Firebase disabled for now — commented out until flutterfire configure is run.
-  // var firebaseAvailable = false;
-  // try {
-  //   await Firebase.initializeApp();
-  //   firebaseAvailable = true;
-  // } catch (e) {
-  //   debugPrint(
-  //     '[RSC] Firebase not configured — run `flutterfire configure` '
-  //     'and add google-services.json. FCM notifications disabled. ($e)',
-  //   );
-  // }
-  const firebaseAvailable = false;
+  // Firebase init never crashes the app — FCM notifications are a nice-to-have,
+  // not a hard dependency for a rider to keep delivering.
+  var firebaseAvailable = false;
+  try {
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    firebaseAvailable = true;
+    debugPrint('[RSC Rider] Firebase initialized');
+  } catch (e) {
+    debugPrint('[RSC Rider] Firebase init failed — FCM disabled. ($e)');
+  }
 
   // Disk-backed so the rider's session cookie survives an app restart.
   final appDocDir = await getApplicationDocumentsDirectory();
@@ -52,6 +46,14 @@ void main() async {
     cookieJar: cookieJar,
     firebaseAvailable: firebaseAvailable,
   );
+
+  if (firebaseAvailable) {
+    try {
+      await getIt<NotificationService>().initialize();
+    } catch (e) {
+      debugPrint('[RSC Rider] Notification setup failed: $e');
+    }
+  }
 
   runApp(RiderApp(router: AppRouter(getIt<AuthNotifier>())));
 }
