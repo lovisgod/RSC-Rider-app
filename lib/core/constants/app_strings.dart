@@ -47,8 +47,6 @@ abstract final class AppStrings {
   static const String accept = 'Accept';
   static const String reject = 'Reject';
   static const String autoRejectIn = 'Auto-reject in';
-  static const String pickupFrom = 'Pickup from';
-  static const String deliverTo = 'Deliver to';
   static const String distance = 'Distance';
   static const String estimatedPay = 'Estimated Pay';
   static const String estimatedTime = 'Est. Time';
@@ -66,22 +64,44 @@ abstract final class AppStrings {
       'Confirm that you have delivered this order to the customer.';
   static const String completeDelivery = 'Complete Delivery';
   static const String completeADelivery = '📦 Complete a Delivery';
-  static const String enterDeliveryDetails = 'Enter Delivery Details';
-  static const String enterDetailsSubtitle =
-      "Enter the order ID and the 6-digit code shown on the customer's "
-      'app to confirm delivery.';
-  static const String orderId = 'ORDER ID';
-  static const String orderIdHint = 'e.g. 870622ab-f679-44d8...';
+  static const String checkingForOrders = 'Checking for orders...';
   static const String customerDeliveryCode = 'CUSTOMER DELIVERY CODE';
   static const String verifying = 'Verifying...';
   static const String backToDashboard = 'Back to Dashboard';
-  static const String pleaseEnterOrderId = 'Please enter the order ID';
   static const String codeMustBeSixDigits = 'Delivery code must be 6 digits';
   static const String invalidDeliveryCode =
       'Invalid delivery code. Please check the code with the customer.';
   static const String orderNotAssigned = 'This order is not assigned to you.';
   static const String orderNotFound =
       'Order not found. Please check the order ID.';
+
+  // Assigned orders
+  static const String assignedOrders = 'assigned order(s)';
+  static const String startDelivery = 'Start Delivery 🛵';
+  static const String rejectOrder = 'Reject Order';
+  static const String whyRejecting = 'Why are you rejecting this order?';
+  static const String confirmRejection = 'Confirm Rejection';
+  static const String suggestedReasonBikeIssue = 'Bike issue';
+  static const String suggestedReasonTooFar = 'Too far';
+  static const String suggestedReasonEmergency = 'Personal emergency';
+  static const String suggestedReasonTraffic = 'Traffic conditions';
+  static const String suggestedReasonAddress = 'Unable to locate address';
+  static const String suggestedReasonOther = 'Other';
+  static const String describeYourReason = 'Describe your reason...';
+  static const String orTypeYourReason = 'OR TYPE YOUR REASON';
+  static const String pickupFrom = 'PICKUP FROM';
+  static const String deliverTo = 'DELIVER TO';
+  static const String iVeArrived = "I've Arrived 📦";
+  static const String almostDone = '📦 Almost done!';
+  static const String askCustomerCode =
+      'Ask the customer for their 6-digit delivery code to complete this '
+      'delivery.';
+  static const String noAssignedOrders = 'No assigned orders at the moment';
+  static const String stayOnDelivery = 'Stay';
+  static const String goBack = 'Go Back';
+  static const String leaveDeliveryWarning =
+      'Are you sure? The delivery will still be assigned to you.';
+  static const String pickupCode = 'Code: ';
   static const String orderLabel = 'ORDER';
   static const String addressLabel = 'ADDRESS';
   static const String earningsLabel = 'EARNINGS';
@@ -139,6 +159,7 @@ abstract final class AppStrings {
   // Common
   static const String loading = 'Loading…';
   static const String retry = 'Retry';
+  static const String refresh = 'Refresh';
   static const String somethingWentWrong = 'Something went wrong';
   static const String tryAgain = 'Please try again.';
   static const String noInternetConnection = 'No internet connection';

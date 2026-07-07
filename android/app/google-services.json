@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "254265809328",
+    "project_id": "rsc-project-500321",
+    "storage_bucket": "rsc-project-500321.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:254265809328:android:f8db7a5b11539de0d29e75",
+        "android_client_info": {
+          "package_name": "com.rsc.rsc_mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCJwN3pGhzYABadcPuJdVi0ZgalCX1NyMk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:254265809328:android:1dc8032e858d06d2d29e75",
+        "android_client_info": {
+          "package_name": "com.rsc.rsc_rider"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCJwN3pGhzYABadcPuJdVi0ZgalCX1NyMk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

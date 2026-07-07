@@ -11,6 +11,7 @@ import 'package:rsc_rider/core/services/deep_link_service.dart';
 import 'package:rsc_rider/core/services/location_broadcasting_service.dart';
 import 'package:rsc_rider/core/services/location_service.dart';
 // import 'package:rsc_rider/core/services/notification_service.dart';
+import 'package:rsc_rider/core/services/routing_service.dart';
 import 'package:rsc_rider/core/storage/cache_manager.dart';
 import 'package:rsc_rider/core/storage/local_storage.dart';
 import 'package:rsc_rider/features/auth/data/datasources/auth_remote_data_source.dart';
@@ -33,7 +34,10 @@ import 'package:rsc_rider/features/delivery/data/repositories/rider_location_rep
 import 'package:rsc_rider/features/delivery/domain/repositories/delivery_repository.dart';
 import 'package:rsc_rider/features/delivery/domain/repositories/rider_location_repository.dart';
 import 'package:rsc_rider/features/delivery/domain/usecases/complete_delivery_usecase.dart';
+import 'package:rsc_rider/features/delivery/domain/usecases/get_assigned_orders_usecase.dart';
 import 'package:rsc_rider/features/delivery/domain/usecases/record_rider_location_usecase.dart';
+import 'package:rsc_rider/features/delivery/domain/usecases/reject_order_usecase.dart';
+import 'package:rsc_rider/features/delivery/presentation/cubit/active_orders_cubit.dart';
 import 'package:rsc_rider/features/delivery/presentation/cubit/delivery_cubit.dart';
 import 'package:rsc_rider/features/history/data/repositories/delivery_history_repository_impl.dart';
 import 'package:rsc_rider/features/history/domain/repositories/delivery_history_repository.dart';
@@ -92,7 +96,8 @@ Future<void> setupDependencies({
   // }
   getIt
     ..registerSingleton<LocationService>(LocationService())
-    ..registerSingleton<DeepLinkService>(DeepLinkService());
+    ..registerSingleton<DeepLinkService>(DeepLinkService())
+    ..registerSingleton<RoutingService>(RoutingService());
 
   getIt
     ..registerLazySingleton<RiderLocationRepository>(
@@ -214,10 +219,26 @@ void _registerDelivery() {
     ..registerLazySingleton<CompleteDeliveryUsecase>(
       () => CompleteDeliveryUsecase(getIt<DeliveryRepository>()),
     )
+    ..registerLazySingleton<GetAssignedOrdersUsecase>(
+      () => GetAssignedOrdersUsecase(getIt<DeliveryRepository>()),
+    )
+    ..registerLazySingleton<RejectOrderUsecase>(
+      () => RejectOrderUsecase(getIt<DeliveryRepository>()),
+    )
+    // Singleton — polling and the active delivery must survive navigation
+    // away from the dashboard (e.g. onto ActiveDeliveryScreen).
+    ..registerLazySingleton<ActiveOrdersCubit>(
+      () => ActiveOrdersCubit(
+        getIt<GetAssignedOrdersUsecase>(),
+        getIt<RejectOrderUsecase>(),
+        getIt<LocationBroadcastingService>(),
+      ),
+    )
     ..registerFactory<DeliveryCubit>(
       () => DeliveryCubit(
         completeDelivery: getIt<CompleteDeliveryUsecase>(),
         locationBroadcastingService: getIt<LocationBroadcastingService>(),
+        activeOrdersCubit: getIt<ActiveOrdersCubit>(),
       ),
     );
 }

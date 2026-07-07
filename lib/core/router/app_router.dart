@@ -8,7 +8,8 @@ import 'package:rsc_rider/core/router/route_names.dart';
 import 'package:rsc_rider/features/auth/presentation/login_screen.dart';
 import 'package:rsc_rider/features/auth/presentation/splash_screen.dart';
 import 'package:rsc_rider/features/dashboard/presentation/dashboard_screen.dart';
-import 'package:rsc_rider/features/delivery/presentation/active_delivery_screen.dart';
+import 'package:rsc_rider/features/delivery/domain/entities/assigned_order_entity.dart';
+import 'package:rsc_rider/features/delivery/presentation/screens/active_delivery_screen.dart';
 import 'package:rsc_rider/features/delivery/presentation/screens/complete_delivery_screen.dart';
 import 'package:rsc_rider/features/dispatch/presentation/incoming_request_screen.dart';
 import 'package:rsc_rider/features/history/presentation/history_screen.dart';
@@ -83,7 +84,9 @@ class AppRouter {
       ),
       GoRoute(
         path: RouteNames.activeDelivery,
-        builder: (context, state) => const ActiveDeliveryScreen(),
+        builder: (context, state) => ActiveDeliveryScreen(
+          order: state.extra as AssignedOrderEntity?,
+        ),
       ),
       GoRoute(
         path: RouteNames.changePassword,

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -23,6 +25,9 @@ import 'package:rsc_rider/features/dashboard/presentation/bloc/dashboard_bloc.da
 import 'package:rsc_rider/features/dashboard/presentation/bloc/dashboard_event.dart';
 import 'package:rsc_rider/features/dashboard/presentation/bloc/dashboard_state.dart';
 import 'package:rsc_rider/features/dashboard/presentation/widgets/bike_marker.dart';
+import 'package:rsc_rider/features/delivery/presentation/cubit/active_orders_cubit.dart';
+import 'package:rsc_rider/features/delivery/presentation/cubit/active_orders_state.dart';
+import 'package:rsc_rider/features/delivery/presentation/widgets/assigned_order_card.dart';
 
 // Victoria Island, Lagos — default map center until the rider's position loads.
 const LatLng _defaultCenter = LatLng(6.4281, 3.4219);
@@ -45,6 +50,7 @@ class DashboardScreen extends StatelessWidget {
               ..add(const DashboardStarted()),
           ),
           BlocProvider(create: (_) => GetIt.instance<AuthBloc>()),
+          BlocProvider(create: (_) => GetIt.instance<ActiveOrdersCubit>()),
         ],
         child: const _DashboardView(),
       );
@@ -59,9 +65,24 @@ class _DashboardView extends StatefulWidget {
 
 class _DashboardViewState extends State<_DashboardView> {
   final MapController _mapController = MapController();
+  late final ActiveOrdersCubit _activeOrdersCubit;
+
+  @override
+  void initState() {
+    super.initState();
+    _activeOrdersCubit = context.read<ActiveOrdersCubit>();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final dashboardState = context.read<DashboardBloc>().state;
+      if (dashboardState is DashboardLoaded && dashboardState.isOnline) {
+        _activeOrdersCubit.startPolling();
+      }
+    });
+  }
 
   @override
   void dispose() {
+    _activeOrdersCubit.stopPolling();
     _mapController.dispose();
     super.dispose();
   }
@@ -135,35 +156,41 @@ class _MapDashboard extends StatelessWidget {
   Widget build(BuildContext context) => Column(
         children: [
           Expanded(
-            child: Stack(
-              children: [
-                _MapLayer(state: state, mapController: mapController),
-                if (!state.isOnline) const _OfflineOverlay(),
-                _TopBar(state: state),
-                Positioned(
-                  right: AppSpacing.md,
-                  bottom: AppSpacing.md,
-                  child: FloatingActionButton.small(
-                    heroTag: 'center_on_me',
-                    backgroundColor: AppColors.navy,
-                    tooltip: AppStrings.centerOnMe,
-                    onPressed: state.riderLatitude != null &&
-                            state.riderLongitude != null
-                        ? () => mapController.move(
-                              LatLng(
-                                state.riderLatitude!,
-                                state.riderLongitude!,
-                              ),
-                              14.5,
-                            )
-                        : null,
-                    child: const Icon(
-                      Icons.my_location_rounded,
-                      color: AppColors.textOnDark,
+            child: RefreshIndicator(
+              onRefresh: () async {
+                unawaited(context.read<ActiveOrdersCubit>().loadAssignedOrders());
+              },
+              color: AppColors.primary,
+              child: Stack(
+                children: [
+                  _MapLayer(state: state, mapController: mapController),
+                  if (!state.isOnline) const _OfflineOverlay(),
+                  _TopBar(state: state),
+                  Positioned(
+                    right: AppSpacing.md,
+                    bottom: AppSpacing.md,
+                    child: FloatingActionButton.small(
+                      heroTag: 'center_on_me',
+                      backgroundColor: AppColors.navy,
+                      tooltip: AppStrings.centerOnMe,
+                      onPressed: state.riderLatitude != null &&
+                              state.riderLongitude != null
+                          ? () => mapController.move(
+                                LatLng(
+                                  state.riderLatitude!,
+                                  state.riderLongitude!,
+                                ),
+                                14.5,
+                              )
+                          : null,
+                      child: const Icon(
+                        Icons.my_location_rounded,
+                        color: AppColors.textOnDark,
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
           _BottomPanel(state: state),
@@ -527,11 +554,18 @@ class _BottomPanel extends StatelessWidget {
                   ),
                   _AvailabilitySwitch(
                     isOnline: state.isOnline,
-                    onTap: () => context.read<DashboardBloc>().add(
-                          DashboardAvailabilityToggled(
-                            isOnline: !state.isOnline,
-                          ),
-                        ),
+                    onTap: () {
+                      final isGoingOnline = !state.isOnline;
+                      context.read<DashboardBloc>().add(
+                        DashboardAvailabilityToggled(isOnline: isGoingOnline),
+                      );
+                      final activeOrdersCubit = context.read<ActiveOrdersCubit>();
+                      if (isGoingOnline) {
+                        activeOrdersCubit.startPolling();
+                      } else {
+                        activeOrdersCubit.stopPolling();
+                      }
+                    },
                   ),
                 ],
               ),
@@ -558,6 +592,102 @@ class _BottomPanel extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: AppSpacing.md),
+              BlocBuilder<ActiveOrdersCubit, ActiveOrdersState>(
+                builder: (context, activeOrdersState) {
+                  if (activeOrdersState.orders.isEmpty &&
+                      !activeOrdersState.isLoading) {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              AppStrings.noAssignedOrders,
+                              style: AppTextStyles.bodySmall.copyWith(
+                                color: AppColors.textSecondary,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ),
+                          _RefreshButton(
+                            onPressed: () => unawaited(
+                              context.read<ActiveOrdersCubit>().loadAssignedOrders(),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  if (activeOrdersState.isLoading && activeOrdersState.orders.isEmpty) {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                      child: Row(
+                        children: [
+                          const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                          const SizedBox(width: AppSpacing.sm),
+                          Text(
+                            AppStrings.checkingForOrders,
+                            style: AppTextStyles.bodySmall.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.sm,
+                              vertical: AppSpacing.xs,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary,
+                              borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
+                            ),
+                            child: Text(
+                              '🛵 ${activeOrdersState.orders.length} ${AppStrings.assignedOrders}',
+                              style: AppTextStyles.labelSmall.copyWith(
+                                color: AppColors.textOnDark,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          const Spacer(),
+                          _RefreshButton(
+                            onPressed: () => unawaited(
+                              context.read<ActiveOrdersCubit>().loadAssignedOrders(),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 200),
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: activeOrdersState.orders.length,
+                          itemBuilder: (context, index) => AssignedOrderCard(
+                            order: activeOrdersState.orders[index],
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+              const SizedBox(height: AppSpacing.sm),
               if (state.isOnline)
                 AppButton(
                   label: AppStrings.completeADelivery,
@@ -625,6 +755,20 @@ class _EarningsCard extends StatelessWidget {
                 style: AppTextStyles.bodySmall),
           ],
         ),
+      );
+}
+
+class _RefreshButton extends StatelessWidget {
+  const _RefreshButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => TextButton.icon(
+        onPressed: onPressed,
+        icon: const Icon(Icons.refresh, size: 16),
+        label: const Text(AppStrings.refresh),
+        style: TextButton.styleFrom(foregroundColor: AppColors.primary),
       );
 }
 
