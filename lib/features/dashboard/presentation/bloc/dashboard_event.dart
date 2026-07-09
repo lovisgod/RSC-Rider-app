@@ -11,10 +11,6 @@ final class DashboardStarted extends DashboardEvent {
   const DashboardStarted();
 }
 
-final class DashboardRefreshRequested extends DashboardEvent {
-  const DashboardRefreshRequested();
-}
-
 final class DashboardAvailabilityToggled extends DashboardEvent {
   const DashboardAvailabilityToggled({required this.isOnline});
 

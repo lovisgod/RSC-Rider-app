@@ -13,8 +13,6 @@ import 'package:rsc_rider/core/constants/app_text_styles.dart';
 import 'package:rsc_rider/core/mock/mock_dashboard.dart';
 import 'package:rsc_rider/core/router/route_names.dart';
 import 'package:rsc_rider/core/services/location_service.dart';
-import 'package:rsc_rider/core/utils/formatters.dart';
-import 'package:rsc_rider/core/widgets/app_button.dart';
 import 'package:rsc_rider/core/widgets/app_loader.dart';
 import 'package:rsc_rider/core/widgets/app_snackbar.dart';
 import 'package:rsc_rider/core/widgets/error_view.dart';
@@ -572,26 +570,6 @@ class _BottomPanel extends StatelessWidget {
               const SizedBox(height: AppSpacing.md),
               const Divider(height: 1, color: AppColors.divider),
               const SizedBox(height: AppSpacing.md),
-              Row(
-                children: [
-                  Expanded(
-                    child: _EarningsCard(
-                      label: AppStrings.todayEarningsLabel,
-                      amount: state.todayEarnings,
-                      deliveries: state.todayDeliveries,
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    child: _EarningsCard(
-                      label: AppStrings.weekEarningsLabel,
-                      amount: state.weekEarnings,
-                      deliveries: state.weekDeliveries,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.md),
               BlocBuilder<ActiveOrdersCubit, ActiveOrdersState>(
                 builder: (context, activeOrdersState) {
                   if (activeOrdersState.orders.isEmpty &&
@@ -687,73 +665,8 @@ class _BottomPanel extends StatelessWidget {
                   );
                 },
               ),
-              const SizedBox(height: AppSpacing.sm),
-              if (state.isOnline)
-                AppButton(
-                  label: AppStrings.completeADelivery,
-                  onPressed: () => context.push(RouteNames.completeDelivery),
-                )
-              else
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () => context.read<DashboardBloc>().add(
-                          const DashboardAvailabilityToggled(isOnline: true),
-                        ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.neutralGray,
-                      foregroundColor: AppColors.textHint,
-                    ),
-                    child: const Text(AppStrings.goOnlineToStart),
-                  ),
-                ),
             ],
           ),
-        ),
-      );
-}
-
-class _EarningsCard extends StatelessWidget {
-  const _EarningsCard({
-    required this.label,
-    required this.amount,
-    required this.deliveries,
-  });
-
-  final String label;
-  final double amount;
-  final int deliveries;
-
-  @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(AppSpacing.sm + AppSpacing.xs),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x14000000),
-              blurRadius: 4,
-              offset: Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label, style: AppTextStyles.labelMedium),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              AppFormatters.currency(amount),
-              style: AppTextStyles.earningsAmount.copyWith(
-                color: AppColors.earnings,
-                fontSize: 22,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text('$deliveries ${AppStrings.deliveries}',
-                style: AppTextStyles.bodySmall),
-          ],
         ),
       );
 }

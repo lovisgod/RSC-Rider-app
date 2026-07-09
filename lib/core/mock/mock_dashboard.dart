@@ -1,10 +1,4 @@
 abstract final class MockDashboard {
-  // Mock earnings
-  static const double todayEarnings = 12500.00;
-  static const int todayDeliveries = 7;
-  static const double weekEarnings = 58750.00;
-  static const int weekDeliveries = 31;
-
   // Mock nearby kitchens — real Lagos/Lekki area coordinates.
   static const List<MockKitchen> nearbyKitchens = [
     MockKitchen(

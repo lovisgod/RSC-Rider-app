@@ -28,11 +28,8 @@ abstract final class AppStrings {
   static const String onlineSubtitle = 'You are online and visible to kitchens';
   static const String offlineSubtitle =
       'You are offline. Go online to receive orders';
-  static const String todayEarningsLabel = 'TODAY';
-  static const String weekEarningsLabel = 'THIS WEEK';
   static const String deliveries = 'deliveries';
   static const String viewIncomingOrders = 'View Incoming Orders →';
-  static const String goOnlineToStart = 'Go Online to Start';
   static const String youAreOfflineMap = 'You are offline';
   static const String toggleToGoOnline = 'Toggle availability to go online';
   static const String centerOnMe = 'Center on me';
@@ -63,7 +60,6 @@ abstract final class AppStrings {
   static const String confirmDeliveryPrompt =
       'Confirm that you have delivered this order to the customer.';
   static const String completeDelivery = 'Complete Delivery';
-  static const String completeADelivery = '📦 Complete a Delivery';
   static const String checkingForOrders = 'Checking for orders...';
   static const String customerDeliveryCode = 'CUSTOMER DELIVERY CODE';
   static const String verifying = 'Verifying...';

@@ -17,7 +17,6 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     required this._getRiderProfile,
   }) : super(const DashboardInitial()) {
     on<DashboardStarted>(_onStarted);
-    on<DashboardRefreshRequested>(_onRefreshRequested);
     on<DashboardAvailabilityToggled>(_onAvailabilityToggled);
     on<DashboardLocationUpdated>(_onLocationUpdated);
   }
@@ -41,10 +40,6 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
           riderName: riderName,
           riderInitials: _initialsOf(riderName),
           isOnline: wasOnline,
-          todayEarnings: MockDashboard.todayEarnings,
-          todayDeliveries: MockDashboard.todayDeliveries,
-          weekEarnings: MockDashboard.weekEarnings,
-          weekDeliveries: MockDashboard.weekDeliveries,
           nearbyKitchens: wasOnline ? MockDashboard.nearbyKitchens : const [],
           isLoadingLocation: true,
         ),
@@ -59,23 +54,6 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     } catch (e) {
       emit(DashboardError(e.toString()));
     }
-  }
-
-  Future<void> _onRefreshRequested(
-    DashboardRefreshRequested event,
-    Emitter<DashboardState> emit,
-  ) async {
-    final current = state;
-    if (current is! DashboardLoaded) return;
-
-    emit(
-      current.copyWith(
-        todayEarnings: MockDashboard.todayEarnings,
-        todayDeliveries: MockDashboard.todayDeliveries,
-        weekEarnings: MockDashboard.weekEarnings,
-        weekDeliveries: MockDashboard.weekDeliveries,
-      ),
-    );
   }
 
   Future<void> _onAvailabilityToggled(
