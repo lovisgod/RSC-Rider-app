@@ -9,9 +9,9 @@ class AssignedModifierModel {
 
   factory AssignedModifierModel.fromJson(Map<String, dynamic> json) =>
       AssignedModifierModel(
-        id: json['id'] as String,
-        name: json['name'] as String,
-        priceDeltaMinor: (json['priceDeltaMinor'] as num).toInt(),
+        id: json['id'] as String? ?? '',
+        name: json['name'] as String? ?? '',
+        priceDeltaMinor: (json['priceDeltaMinor'] as num?)?.toInt() ?? 0,
       );
 
   final String id;
@@ -19,8 +19,8 @@ class AssignedModifierModel {
   final int priceDeltaMinor;
 
   AssignedModifierEntity toEntity() => AssignedModifierEntity(
-        id: id,
-        name: name,
-        priceDelta: priceDeltaMinor / 100,
-      );
+    id: id,
+    name: name,
+    priceDelta: priceDeltaMinor / 100,
+  );
 }

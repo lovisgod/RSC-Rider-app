@@ -2,20 +2,23 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:rsc_rider/core/constants/app_colors.dart';
 import 'package:rsc_rider/core/constants/app_spacing.dart';
 import 'package:rsc_rider/core/constants/app_strings.dart';
 import 'package:rsc_rider/core/constants/app_text_styles.dart';
 import 'package:rsc_rider/core/models/route_result.dart';
 import 'package:rsc_rider/core/services/location_service.dart';
+import 'package:rsc_rider/core/utils/map_utils.dart';
 import 'package:rsc_rider/core/services/routing_service.dart';
+import 'package:rsc_rider/core/services/socket_service.dart';
 import 'package:rsc_rider/core/widgets/app_button.dart';
+import 'package:rsc_rider/core/widgets/app_snackbar.dart';
 import 'package:rsc_rider/features/delivery/domain/entities/assigned_order_entity.dart';
+import 'package:rsc_rider/features/delivery/domain/entities/assigned_outlet_entity.dart';
 import 'package:rsc_rider/features/delivery/presentation/cubit/active_orders_cubit.dart';
 import 'package:rsc_rider/features/delivery/presentation/cubit/delivery_cubit.dart';
 import 'package:rsc_rider/features/delivery/presentation/cubit/delivery_state.dart';
@@ -56,14 +59,17 @@ class _ActiveDeliveryView extends StatefulWidget {
 }
 
 class _ActiveDeliveryViewState extends State<_ActiveDeliveryView> {
-  final MapController _mapController = MapController();
+  GoogleMapController? _mapController;
   final LocationService _locationService = GetIt.instance<LocationService>();
   final RoutingService _routingService = GetIt.instance<RoutingService>();
+  final SocketService _socketService = GetIt.instance<SocketService>();
 
   StreamSubscription<Position>? _positionSubscription;
   List<LatLng> _routePoints = [];
   RouteResult? _routeResult;
   LatLng? _riderPosition;
+
+  String get _orderRoom => 'order:${widget.order.orderId}';
 
   LatLng get _destination =>
       LatLng(widget.order.deliveryLatitude, widget.order.deliveryLongitude);
@@ -72,6 +78,45 @@ class _ActiveDeliveryViewState extends State<_ActiveDeliveryView> {
   void initState() {
     super.initState();
     unawaited(_initRouteAndTracking());
+    _socketService.subscribeToRoom(_orderRoom);
+    _socketService.on('order:status_update', _onOrderStatusUpdate);
+    debugPrint('[DineOut NG Rider Socket] Tracking order: ${widget.order.orderId}');
+  }
+
+  void _onOrderStatusUpdate(dynamic data) {
+    try {
+      final payload = data as Map<String, dynamic>;
+      // The rider room delivers this same event for the rider's *other*
+      // orders too — without this guard, cancelling order B would pop
+      // order A's delivery screen.
+      final masterOrderId =
+          (payload['masterOrderId'] ?? payload['orderId']) as String?;
+      if (masterOrderId != null && masterOrderId != widget.order.orderId) {
+        return;
+      }
+      final status = (payload['status'] as String?)?.toUpperCase();
+
+      if (status == 'CANCELLED') {
+        if (mounted) {
+          AppSnackbar.showError(context, AppStrings.orderCancelledAlert);
+        }
+        Future.delayed(const Duration(seconds: 2), () {
+          if (mounted) Navigator.of(context).pop();
+        });
+        debugPrint(
+          '[DineOut NG Rider Socket] Active order cancelled — returning to '
+          'dashboard',
+        );
+      } else if (status == 'DELIVERED') {
+        // Should not happen mid-delivery, but handle gracefully.
+        debugPrint(
+          '[DineOut NG Rider Socket] Order marked delivered: '
+          '${payload['masterOrderId']}',
+        );
+      }
+    } catch (e) {
+      debugPrint('[DineOut NG Rider Socket] Error handling status update: $e');
+    }
   }
 
   Future<void> _initRouteAndTracking() async {
@@ -93,6 +138,7 @@ class _ActiveDeliveryViewState extends State<_ActiveDeliveryView> {
         _routeResult = route;
         _routePoints = route?.points ?? [riderPoint, _destination];
       });
+      _fitMapToRoute();
     } catch (_) {
       // Rider position unavailable — map still renders without a route.
     }
@@ -106,13 +152,32 @@ class _ActiveDeliveryViewState extends State<_ActiveDeliveryView> {
   @override
   void dispose() {
     _positionSubscription?.cancel();
-    _mapController.dispose();
+    _socketService.off('order:status_update', _onOrderStatusUpdate);
+    _socketService.unsubscribeFromRoom(_orderRoom);
+    _mapController?.dispose();
     super.dispose();
+  }
+
+  void _onMapCreated(GoogleMapController controller) {
+    _mapController = controller;
+    // The route may have resolved before the map finished creating.
+    _fitMapToRoute();
+  }
+
+  // 80px padding keeps the endpoint markers fully visible.
+  void _fitMapToRoute() {
+    if (_routePoints.isEmpty) return;
+    _mapController?.animateCamera(
+      CameraUpdate.newLatLngBounds(
+        MapUtils.boundsFromPoints(_routePoints),
+        80.0,
+      ),
+    );
   }
 
   void _centerOnRider() {
     if (_riderPosition != null) {
-      _mapController.move(_riderPosition!, _mapController.camera.zoom);
+      _mapController?.animateCamera(CameraUpdate.newLatLng(_riderPosition!));
     }
   }
 
@@ -174,115 +239,62 @@ class _ActiveDeliveryViewState extends State<_ActiveDeliveryView> {
         ),
       );
 
-  Widget _buildMap() => FlutterMap(
-        mapController: _mapController,
-        options: MapOptions(
-          initialCenter: _riderPosition ?? _destination,
-          initialZoom: 13.0,
-        ),
-        children: [
-          TileLayer(
-            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-            userAgentPackageName: 'com.rsc.rsc_rider',
+  Set<Marker> _buildDeliveryMarkers() => {
+        for (final outlet in widget.order.outlets)
+          Marker(
+            markerId: MarkerId('outlet_${outlet.outletId}'),
+            position: LatLng(outlet.pickupLatitude, outlet.pickupLongitude),
+            icon: BitmapDescriptor.defaultMarkerWithHue(
+              BitmapDescriptor.hueOrange,
+            ),
+            infoWindow: InfoWindow(
+              title: '🏪 ${outlet.outletName}',
+              snippet: 'Code: ${outlet.pickupCode}',
+            ),
           ),
+        Marker(
+          markerId: const MarkerId('destination'),
+          position: _destination,
+          icon: BitmapDescriptor.defaultMarkerWithHue(
+            BitmapDescriptor.hueRed,
+          ),
+          infoWindow: InfoWindow(
+            title: '📍 Delivery',
+            snippet: widget.order.deliveryAddress,
+          ),
+        ),
+        if (_riderPosition != null)
+          Marker(
+            markerId: const MarkerId('rider'),
+            position: _riderPosition!,
+            icon: BitmapDescriptor.defaultMarkerWithHue(
+              BitmapDescriptor.hueBlue,
+            ),
+            infoWindow: const InfoWindow(title: '🏍️ You'),
+          ),
+      };
+
+  Widget _buildMap() => GoogleMap(
+        mapType: MapType.normal,
+        initialCameraPosition: CameraPosition(
+          target: _riderPosition ?? _destination,
+          zoom: 13.0,
+        ),
+        myLocationEnabled: true,
+        myLocationButtonEnabled: false,
+        zoomControlsEnabled: false,
+        compassEnabled: true,
+        onMapCreated: _onMapCreated,
+        markers: _buildDeliveryMarkers(),
+        polylines: {
           if (_routePoints.isNotEmpty)
-            PolylineLayer(
-              polylines: [
-                Polyline(
-                  points: _routePoints,
-                  color: AppColors.primary,
-                  strokeWidth: 4.0,
-                ),
-              ],
+            Polyline(
+              polylineId: const PolylineId('route'),
+              points: _routePoints,
+              color: AppColors.primary,
+              width: 4,
             ),
-          MarkerLayer(
-            markers: [
-              for (final outlet in widget.order.outlets)
-                Marker(
-                  point: LatLng(outlet.pickupLatitude, outlet.pickupLongitude),
-                  width: 72,
-                  height: 58,
-                  child: _PickupMarker(label: outlet.outletName),
-                ),
-              Marker(
-                point: _destination,
-                width: 44,
-                height: 44,
-                child: const _EmojiMarker(
-                  emoji: '📍',
-                  color: AppColors.error,
-                  size: 44,
-                ),
-              ),
-              if (_riderPosition != null)
-                Marker(
-                  point: _riderPosition!,
-                  width: 44,
-                  height: 44,
-                  child: const _EmojiMarker(
-                    emoji: '🏍️',
-                    color: AppColors.navy,
-                    size: 44,
-                  ),
-                ),
-            ],
-          ),
-        ],
-      );
-}
-
-class _EmojiMarker extends StatelessWidget {
-  const _EmojiMarker({required this.emoji, required this.color, required this.size});
-
-  final String emoji;
-  final Color color;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) => Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          color: color,
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.2),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        alignment: Alignment.center,
-        child: Text(emoji, style: TextStyle(fontSize: size * 0.5)),
-      );
-}
-
-class _PickupMarker extends StatelessWidget {
-  const _PickupMarker({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const _EmojiMarker(emoji: '🏪', color: AppColors.primary, size: 36),
-          const SizedBox(height: 2),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-            ),
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppTextStyles.labelSmall.copyWith(fontSize: 9),
-            ),
-          ),
-        ],
+        },
       );
 }
 
@@ -413,33 +425,29 @@ class _BottomDeliveryPanel extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: AppSpacing.sm),
-                for (final outlet in order.outlets)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-                    child: Row(
+                ConstrainedBox(
+                  // Keeps the panel usable when an order has several outlets
+                  // with long item lists — the map stays visible above.
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.sizeOf(context).height * 0.32,
+                  ),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('🏪', style: TextStyle(fontSize: 14)),
-                        const SizedBox(width: AppSpacing.xs),
-                        Expanded(
-                          child: Text(
-                            outlet.outletName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppTextStyles.bodyMedium.copyWith(
-                              fontWeight: FontWeight.w600,
+                        for (var i = 0; i < order.outlets.length; i++) ...[
+                          _OutletPickupCard(outlet: order.outlets[i]),
+                          if (i < order.outlets.length - 1)
+                            const Divider(
+                              height: AppSpacing.sm,
+                              thickness: 0.5,
+                              color: AppColors.divider,
                             ),
-                          ),
-                        ),
-                        Text(
-                          '${AppStrings.pickupCode}${outlet.pickupCode}',
-                          style: AppTextStyles.bodySmall.copyWith(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        ],
                       ],
                     ),
                   ),
+                ),
                 const Divider(height: AppSpacing.lg, color: AppColors.divider),
                 Text(
                   AppStrings.deliverTo,
@@ -468,6 +476,151 @@ class _BottomDeliveryPanel extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+        ),
+      );
+}
+
+class _OutletPickupCard extends StatelessWidget {
+  const _OutletPickupCard({required this.outlet});
+
+  final AssignedOutletEntity outlet;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        margin: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          border: Border.all(color: AppColors.divider),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Text('🏪', style: TextStyle(fontSize: 14)),
+                const SizedBox(width: AppSpacing.xs),
+                Expanded(
+                  child: Text(
+                    outlet.outletName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.navy,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                _OutletStatusBadge(status: outlet.status),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Text(
+                  AppStrings.pickupCodeLabel,
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                // Large on purpose — the rider shows this to kitchen staff.
+                Text(
+                  outlet.pickupCode,
+                  style: AppTextStyles.headlineSmall.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 2,
+                  ),
+                ),
+              ],
+            ),
+            if (outlet.hasPreparationNote) ...[
+              const SizedBox(height: AppSpacing.xs),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('📝', style: TextStyle(fontSize: 12)),
+                  const SizedBox(width: AppSpacing.xs),
+                  Expanded(
+                    child: Text(
+                      '${AppStrings.preparationNote}${outlet.preparationNote}',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.textSecondary,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            if (outlet.items.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.sm),
+              for (final item in outlet.items) ...[
+                Text(
+                  item.displayName,
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                if (item.modifiers.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(left: AppSpacing.sm),
+                    child: Text(
+                      '+ ${item.modifiersSummary}',
+                      style: AppTextStyles.labelSmall.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+              ],
+            ],
+          ],
+        ),
+      );
+}
+
+class _OutletStatusBadge extends StatelessWidget {
+  const _OutletStatusBadge({required this.status});
+
+  final String status;
+
+  Color get _color {
+    switch (status.toUpperCase()) {
+      case 'ACCEPTED':
+        return AppColors.info;
+      case 'PREPARING':
+        return AppColors.warning;
+      case 'READY':
+        return AppColors.success;
+      case 'COLLECTED':
+        return AppColors.navy;
+      default:
+        // PENDING and any unknown status.
+        return AppColors.neutralGray;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.xs,
+        ),
+        decoration: BoxDecoration(
+          color: _color,
+          borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
+        ),
+        child: Text(
+          status.toUpperCase(),
+          style: AppTextStyles.labelSmall.copyWith(
+            color: AppColors.textOnDark,
+            fontWeight: FontWeight.bold,
           ),
         ),
       );

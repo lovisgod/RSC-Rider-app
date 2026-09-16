@@ -10,6 +10,7 @@ import 'package:rsc_rider/core/constants/api_endpoints.dart';
 import 'package:rsc_rider/core/network/dio_client.dart';
 import 'package:rsc_rider/core/router/app_router.dart';
 import 'package:rsc_rider/core/router/route_names.dart';
+import 'package:rsc_rider/core/storage/local_storage.dart';
 import 'package:rsc_rider/core/utils/logger.dart';
 import 'package:rsc_rider/features/delivery/domain/entities/assigned_order_entity.dart';
 import 'package:rsc_rider/features/delivery/domain/entities/assigned_outlet_entity.dart';
@@ -34,17 +35,18 @@ Future<void> _backgroundMessageHandler(RemoteMessage message) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   // Full logging — payload shape isn't finalized yet, so this is how we see
   // exactly what the backend sends while the rider's app is backgrounded.
-  debugPrint('[RSC Rider] 🌙 Background message:');
+  debugPrint('[DineOut NG Rider] 🌙 Background message:');
   debugPrint('  title: ${message.notification?.title}');
   debugPrint('  body: ${message.notification?.body}');
   debugPrint('  data: ${message.data}');
 }
 
 class NotificationService {
-  NotificationService(this._messaging, this._dioClient);
+  NotificationService(this._messaging, this._dioClient, this._localStorage);
 
   final FirebaseMessaging _messaging;
   final DioClient _dioClient;
+  final LocalStorage _localStorage;
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
 
@@ -82,6 +84,13 @@ class NotificationService {
 
   Future<void> _saveTokenToBackend(String token) async {
     try {
+      // Never register an FCM token without a rider session — the call would
+      // 401 and there is no rider to associate the token with anyway.
+      final riderId = await _localStorage.getRiderId();
+      if (riderId == null) {
+        appLogger.i('[FCM] No rider session — skipping token registration.');
+        return;
+      }
       await _dioClient.dio.post<void>(
         ApiEndpoints.deviceToken,
         data: {'token': token},
@@ -120,7 +129,7 @@ class NotificationService {
     // Full logging — the backend payload shape isn't finalized yet, so this
     // is intentional: it's how we discover exactly what arrives. Trim the
     // verbosity once the real payload shape is confirmed.
-    debugPrint('[RSC Rider] 🔔 Foreground notification:');
+    debugPrint('[DineOut NG Rider] 🔔 Foreground notification:');
     debugPrint('  title: ${message.notification?.title}');
     debugPrint('  body: ${message.notification?.body}');
     debugPrint('  data: ${message.data}');
@@ -132,7 +141,7 @@ class NotificationService {
   Future<void> _showLocalNotification(RemoteMessage message) async {
     final title = message.notification?.title ??
         _getTitleFromData(message.data) ??
-        'RSC Rider';
+        'DineOut NG Rider';
     final body = message.notification?.body ??
         _getBodyFromData(message.data) ??
         'You have a new notification';
@@ -185,7 +194,7 @@ class NotificationService {
   }
 
   void _handleNotificationTap(RemoteMessage message) {
-    debugPrint('[RSC Rider] 👆 Notification tapped:');
+    debugPrint('[DineOut NG Rider] 👆 Notification tapped:');
     debugPrint('  data: ${message.data}');
     _handleNotificationData(message.data);
   }
@@ -196,26 +205,26 @@ class NotificationService {
   // finalized, so this checks several plausible key/value spellings and
   // falls back gracefully for anything it doesn't recognise yet.
   void _handleNotificationData(Map<String, dynamic> data) {
-    debugPrint('[RSC Rider] 📦 Notification data: $data');
+    debugPrint('[DineOut NG Rider] 📦 Notification data: $data');
 
     final type = data['type'] as String? ??
         data['notificationType'] as String? ??
         data['event'] as String?;
-    debugPrint('[RSC Rider] Type: $type');
+    debugPrint('[DineOut NG Rider] Type: $type');
 
     switch (type?.toUpperCase()) {
       case 'ORDER_ASSIGNMENT':
       case 'NEW_ORDER':
       case 'DISPATCH':
-        debugPrint('[RSC Rider] New order assigned!');
+        debugPrint('[DineOut NG Rider] New order assigned!');
         _onNewOrderAssigned(data);
       case 'ORDER_STATUS':
       case 'ORDER_UPDATE':
-        debugPrint('[RSC Rider] Order status update');
+        debugPrint('[DineOut NG Rider] Order status update');
         _onOrderStatusUpdate(data);
       default:
-        debugPrint('[RSC Rider] Unknown type: $type');
-        debugPrint('[RSC Rider] Full data: $data');
+        debugPrint('[DineOut NG Rider] Unknown type: $type');
+        debugPrint('[DineOut NG Rider] Full data: $data');
         _onGenericNotification();
     }
   }
@@ -227,7 +236,7 @@ class NotificationService {
   void _onNewOrderAssigned(Map<String, dynamic> data) {
     try {
       final masterOrderId = data['masterOrderId'] as String;
-      debugPrint('[RSC Rider] Order ID: $masterOrderId');
+      debugPrint('[DineOut NG Rider] Order ID: $masterOrderId');
 
       final dropOff =
           jsonDecode(data['dropOff'] as String) as Map<String, dynamic>;
@@ -269,12 +278,12 @@ class NotificationService {
       GetIt.instance<ActiveOrdersCubit>().addOrderFromNotification(order);
       _navigateToDashboard();
     } catch (e) {
-      debugPrint('[RSC Rider] Failed to parse notification order: $e');
+      debugPrint('[DineOut NG Rider] Failed to parse notification order: $e');
       // Fallback — reload from the API so the order still shows up.
       try {
         GetIt.instance<ActiveOrdersCubit>().loadAssignedOrders();
       } catch (e2) {
-        debugPrint('[RSC Rider] Could not reload orders: $e2');
+        debugPrint('[DineOut NG Rider] Could not reload orders: $e2');
       }
       _navigateToDashboard();
     }
@@ -284,12 +293,12 @@ class NotificationService {
     final orderId =
         data['orderId'] as String? ?? data['masterOrderId'] as String?;
     final status = data['status'] as String?;
-    debugPrint('[RSC Rider] Status update: $orderId → $status');
+    debugPrint('[DineOut NG Rider] Status update: $orderId → $status');
 
     try {
       GetIt.instance<ActiveOrdersCubit>().loadAssignedOrders();
     } catch (e) {
-      debugPrint('[RSC Rider] Could not reload: $e');
+      debugPrint('[DineOut NG Rider] Could not reload: $e');
     }
   }
 

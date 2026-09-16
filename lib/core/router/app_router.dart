@@ -5,7 +5,9 @@ import 'package:go_router/go_router.dart';
 import 'package:rsc_rider/core/constants/app_colors.dart';
 import 'package:rsc_rider/core/router/route_guards.dart';
 import 'package:rsc_rider/core/router/route_names.dart';
+import 'package:rsc_rider/features/auth/presentation/forgot_password_screen.dart';
 import 'package:rsc_rider/features/auth/presentation/login_screen.dart';
+import 'package:rsc_rider/features/auth/presentation/reset_password_screen.dart';
 import 'package:rsc_rider/features/auth/presentation/splash_screen.dart';
 import 'package:rsc_rider/features/dashboard/presentation/dashboard_screen.dart';
 import 'package:rsc_rider/features/delivery/domain/entities/assigned_order_entity.dart';
@@ -42,6 +44,20 @@ class AppRouter {
       GoRoute(
         path: RouteNames.login,
         builder: (context, state) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: RouteNames.forgotPassword,
+        builder: (context, state) => const ForgotPasswordScreen(),
+      ),
+      GoRoute(
+        path: RouteNames.resetPassword,
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>? ?? const {};
+          return ResetPasswordScreen(
+            identifier: extra['identifier'] as String? ?? '',
+            otpExpiresInSeconds: extra['otpExpiresInSeconds'] as int? ?? 0,
+          );
+        },
       ),
 
       // ── Main shell with bottom nav ───────────────────────────────────────
@@ -117,7 +133,12 @@ class AppRouter {
       return isAuth ? RouteNames.dashboard : RouteNames.login;
     }
 
-    if (!isAuth && location != RouteNames.login) return RouteNames.login;
+    const publicPaths = {
+      RouteNames.login,
+      RouteNames.forgotPassword,
+      RouteNames.resetPassword,
+    };
+    if (!isAuth && !publicPaths.contains(location)) return RouteNames.login;
     if (isAuth && location == RouteNames.login) return RouteNames.dashboard;
 
     return null;

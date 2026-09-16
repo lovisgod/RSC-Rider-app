@@ -27,6 +27,33 @@ android {
         multiDexEnabled = true
     }
 
+    buildFeatures {
+        // AGP disables resValue generation by default — the flavors below use
+        // it for the per-environment app_name string.
+        resValues = true
+    }
+
+    flavorDimensions += "environment"
+
+    productFlavors {
+        create("development") {
+            dimension = "environment"
+            applicationIdSuffix = ".dev"
+            versionNameSuffix = "-dev"
+            resValue("string", "app_name", "DineOut NG Rider Dev")
+        }
+        create("staging") {
+            dimension = "environment"
+            applicationIdSuffix = ".staging"
+            versionNameSuffix = "-staging"
+            resValue("string", "app_name", "DineOut NG Rider Staging")
+        }
+        create("production") {
+            dimension = "environment"
+            resValue("string", "app_name", "DineOut NG Rider")
+        }
+    }
+
     buildTypes {
         release {
             // TODO: Add your own signing config for the release build.

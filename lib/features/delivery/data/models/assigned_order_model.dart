@@ -14,22 +14,25 @@ class AssignedOrderModel {
     required this.outlets,
   });
 
-  factory AssignedOrderModel.fromJson(Map<String, dynamic> json) =>
-      AssignedOrderModel(
-        orderId: json['orderId'] as String,
-        status: json['status'] as String,
-        deliveryCodeRequired: json['deliveryCodeRequired'] as bool,
-        deliveryAddress: json['deliveryAddress'] as String,
-        deliveryLatitude: (json['deliveryLatitude'] as num).toDouble(),
-        deliveryLongitude: (json['deliveryLongitude'] as num).toDouble(),
-        customerId: json['customerId'] as String,
-        riderId: json['riderId'] as String,
-        outlets: (json['outlets'] as List<dynamic>? ?? [])
-            .map((outlet) => AssignedOutletModel.fromJson(
-                  Map<String, dynamic>.from(outlet as Map),
-                ))
-            .toList(),
-      );
+  factory AssignedOrderModel.fromJson(
+    Map<String, dynamic> json,
+  ) => AssignedOrderModel(
+    orderId: json['orderId'] as String,
+    status: json['status'] as String? ?? '',
+    deliveryCodeRequired: json['deliveryCodeRequired'] as bool? ?? false,
+    deliveryAddress: json['deliveryAddress'] as String? ?? '',
+    deliveryLatitude: (json['deliveryLatitude'] as num?)?.toDouble() ?? 0,
+    deliveryLongitude: (json['deliveryLongitude'] as num?)?.toDouble() ?? 0,
+    customerId: json['customerId'] as String? ?? '',
+    riderId: json['riderId'] as String? ?? '',
+    outlets: (json['outlets'] as List<dynamic>? ?? [])
+        .whereType<Map>()
+        .map(
+          (outlet) =>
+              AssignedOutletModel.fromJson(Map<String, dynamic>.from(outlet)),
+        )
+        .toList(),
+  );
 
   final String orderId;
   final String status;
@@ -42,14 +45,14 @@ class AssignedOrderModel {
   final List<AssignedOutletModel> outlets;
 
   AssignedOrderEntity toEntity() => AssignedOrderEntity(
-        orderId: orderId,
-        status: status,
-        deliveryCodeRequired: deliveryCodeRequired,
-        deliveryAddress: deliveryAddress,
-        deliveryLatitude: deliveryLatitude,
-        deliveryLongitude: deliveryLongitude,
-        customerId: customerId,
-        riderId: riderId,
-        outlets: outlets.map((outlet) => outlet.toEntity()).toList(),
-      );
+    orderId: orderId,
+    status: status,
+    deliveryCodeRequired: deliveryCodeRequired,
+    deliveryAddress: deliveryAddress,
+    deliveryLatitude: deliveryLatitude,
+    deliveryLongitude: deliveryLongitude,
+    customerId: customerId,
+    riderId: riderId,
+    outlets: outlets.map((outlet) => outlet.toEntity()).toList(),
+  );
 }

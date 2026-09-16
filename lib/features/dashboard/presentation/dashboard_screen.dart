@@ -2,17 +2,16 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:rsc_rider/core/constants/app_colors.dart';
 import 'package:rsc_rider/core/constants/app_spacing.dart';
 import 'package:rsc_rider/core/constants/app_strings.dart';
 import 'package:rsc_rider/core/constants/app_text_styles.dart';
-import 'package:rsc_rider/core/mock/mock_dashboard.dart';
 import 'package:rsc_rider/core/router/route_names.dart';
 import 'package:rsc_rider/core/services/location_service.dart';
+import 'package:rsc_rider/core/services/socket_service.dart';
 import 'package:rsc_rider/core/widgets/app_loader.dart';
 import 'package:rsc_rider/core/widgets/app_snackbar.dart';
 import 'package:rsc_rider/core/widgets/error_view.dart';
@@ -22,20 +21,12 @@ import 'package:rsc_rider/features/auth/presentation/bloc/auth_state.dart';
 import 'package:rsc_rider/features/dashboard/presentation/bloc/dashboard_bloc.dart';
 import 'package:rsc_rider/features/dashboard/presentation/bloc/dashboard_event.dart';
 import 'package:rsc_rider/features/dashboard/presentation/bloc/dashboard_state.dart';
-import 'package:rsc_rider/features/dashboard/presentation/widgets/bike_marker.dart';
 import 'package:rsc_rider/features/delivery/presentation/cubit/active_orders_cubit.dart';
 import 'package:rsc_rider/features/delivery/presentation/cubit/active_orders_state.dart';
 import 'package:rsc_rider/features/delivery/presentation/widgets/assigned_order_card.dart';
 
 // Victoria Island, Lagos — default map center until the rider's position loads.
 const LatLng _defaultCenter = LatLng(6.4281, 3.4219);
-
-const List<double> _greyscaleMatrix = [
-  0.2126, 0.7152, 0.0722, 0, 0,
-  0.2126, 0.7152, 0.0722, 0, 0,
-  0.2126, 0.7152, 0.0722, 0, 0,
-  0, 0, 0, 1, 0,
-];
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -48,7 +39,12 @@ class DashboardScreen extends StatelessWidget {
               ..add(const DashboardStarted()),
           ),
           BlocProvider(create: (_) => GetIt.instance<AuthBloc>()),
-          BlocProvider(create: (_) => GetIt.instance<ActiveOrdersCubit>()),
+          // .value, not create: — ActiveOrdersCubit is a GetIt singleton that
+          // must survive navigation away from the dashboard. BlocProvider
+          // .create() takes ownership and closes it on unmount, which would
+          // kill the shared instance and crash any later emit (e.g. from
+          // SocketEventHandler or a push-notification reload).
+          BlocProvider.value(value: GetIt.instance<ActiveOrdersCubit>()),
         ],
         child: const _DashboardView(),
       );
@@ -62,7 +58,7 @@ class _DashboardView extends StatefulWidget {
 }
 
 class _DashboardViewState extends State<_DashboardView> {
-  final MapController _mapController = MapController();
+  GoogleMapController? _mapController;
   late final ActiveOrdersCubit _activeOrdersCubit;
 
   @override
@@ -73,16 +69,42 @@ class _DashboardViewState extends State<_DashboardView> {
       if (!mounted) return;
       final dashboardState = context.read<DashboardBloc>().state;
       if (dashboardState is DashboardLoaded && dashboardState.isOnline) {
-        _activeOrdersCubit.startPolling();
+        unawaited(_activeOrdersCubit.loadAssignedOrders());
       }
     });
   }
 
   @override
   void dispose() {
-    _activeOrdersCubit.stopPolling();
-    _mapController.dispose();
+    _mapController?.dispose();
     super.dispose();
+  }
+
+  void _onMapCreated(GoogleMapController controller) {
+    _mapController = controller;
+    _moveToRiderLocation();
+  }
+
+  void _moveToRiderLocation() {
+    final state = context.read<DashboardBloc>().state;
+    if (state is DashboardLoaded &&
+        state.riderLatitude != null &&
+        state.riderLongitude != null) {
+      _mapController?.animateCamera(
+        CameraUpdate.newLatLng(
+          LatLng(state.riderLatitude!, state.riderLongitude!),
+        ),
+      );
+    }
+  }
+
+  void _centerOnRider(DashboardLoaded state) {
+    _mapController?.animateCamera(
+      CameraUpdate.newLatLngZoom(
+        LatLng(state.riderLatitude!, state.riderLongitude!),
+        14.5,
+      ),
+    );
   }
 
   @override
@@ -97,46 +119,61 @@ class _DashboardViewState extends State<_DashboardView> {
               previous.riderLongitude != current.riderLongitude),
       listener: (context, state) {
         final loaded = state as DashboardLoaded;
-        _mapController.move(
-          LatLng(loaded.riderLatitude!, loaded.riderLongitude!),
-          _mapController.camera.zoom,
+        _mapController?.animateCamera(
+          CameraUpdate.newLatLng(
+            LatLng(loaded.riderLatitude!, loaded.riderLongitude!),
+          ),
         );
       },
-      child: BlocListener<AuthBloc, AuthState>(
-        listener: (context, state) {
-          if (state is AuthUnauthenticated) context.go(RouteNames.login);
-        },
-        child: Scaffold(
-          body: Stack(
-            children: [
-              BlocBuilder<DashboardBloc, DashboardState>(
-                builder: (context, state) {
-                  return switch (state) {
-                    DashboardInitial() ||
-                    DashboardLoading() =>
-                      const AppLoader(),
-                    DashboardError(:final message) => ErrorView(
-                        message: message,
-                        onRetry: () => context
-                            .read<DashboardBloc>()
-                            .add(const DashboardStarted()),
-                      ),
-                    DashboardLoaded() => _MapDashboard(
-                        state: state,
-                        mapController: _mapController,
-                      ),
-                  };
-                },
-              ),
-              BlocBuilder<AuthBloc, AuthState>(
-                builder: (context, state) => state is AuthLoading
-                    ? const ColoredBox(
-                        color: Color(0x33000000),
-                        child: Center(child: AppLoader()),
-                      )
-                    : const SizedBox.shrink(),
-              ),
-            ],
+      child: BlocListener<DashboardBloc, DashboardState>(
+        // One-shot availability failure → snackbar (the toggle has already
+        // been reverted by the bloc when this fires).
+        listenWhen: (previous, current) =>
+            current is DashboardLoaded &&
+            current.availabilityError != null &&
+            (previous is! DashboardLoaded ||
+                previous.availabilityError != current.availabilityError),
+        listener: (context, state) => AppSnackbar.showError(
+          context,
+          (state as DashboardLoaded).availabilityError!,
+        ),
+        child: BlocListener<AuthBloc, AuthState>(
+          listener: (context, state) {
+            if (state is AuthUnauthenticated) context.go(RouteNames.login);
+          },
+          child: Scaffold(
+            body: Stack(
+              children: [
+                BlocBuilder<DashboardBloc, DashboardState>(
+                  builder: (context, state) {
+                    return switch (state) {
+                      DashboardInitial() ||
+                      DashboardLoading() =>
+                        const AppLoader(),
+                      DashboardError(:final message) => ErrorView(
+                          message: message,
+                          onRetry: () => context
+                              .read<DashboardBloc>()
+                              .add(const DashboardStarted()),
+                        ),
+                      DashboardLoaded() => _MapDashboard(
+                          state: state,
+                          onMapCreated: _onMapCreated,
+                          onCenterOnRider: _centerOnRider,
+                        ),
+                    };
+                  },
+                ),
+                BlocBuilder<AuthBloc, AuthState>(
+                  builder: (context, state) => state is AuthLoading
+                      ? const ColoredBox(
+                          color: Color(0x33000000),
+                          child: Center(child: AppLoader()),
+                        )
+                      : const SizedBox.shrink(),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -145,10 +182,15 @@ class _DashboardViewState extends State<_DashboardView> {
 }
 
 class _MapDashboard extends StatelessWidget {
-  const _MapDashboard({required this.state, required this.mapController});
+  const _MapDashboard({
+    required this.state,
+    required this.onMapCreated,
+    required this.onCenterOnRider,
+  });
 
   final DashboardLoaded state;
-  final MapController mapController;
+  final void Function(GoogleMapController) onMapCreated;
+  final void Function(DashboardLoaded) onCenterOnRider;
 
   @override
   Widget build(BuildContext context) => Column(
@@ -161,7 +203,7 @@ class _MapDashboard extends StatelessWidget {
               color: AppColors.primary,
               child: Stack(
                 children: [
-                  _MapLayer(state: state, mapController: mapController),
+                  _MapLayer(state: state, onMapCreated: onMapCreated),
                   if (!state.isOnline) const _OfflineOverlay(),
                   _TopBar(state: state),
                   Positioned(
@@ -173,13 +215,7 @@ class _MapDashboard extends StatelessWidget {
                       tooltip: AppStrings.centerOnMe,
                       onPressed: state.riderLatitude != null &&
                               state.riderLongitude != null
-                          ? () => mapController.move(
-                                LatLng(
-                                  state.riderLatitude!,
-                                  state.riderLongitude!,
-                                ),
-                                14.5,
-                              )
+                          ? () => onCenterOnRider(state)
                           : null,
                       child: const Icon(
                         Icons.my_location_rounded,
@@ -197,10 +233,33 @@ class _MapDashboard extends StatelessWidget {
 }
 
 class _MapLayer extends StatelessWidget {
-  const _MapLayer({required this.state, required this.mapController});
+  const _MapLayer({required this.state, required this.onMapCreated});
 
   final DashboardLoaded state;
-  final MapController mapController;
+  final void Function(GoogleMapController) onMapCreated;
+
+  Set<Marker> _buildMarkers(BuildContext context) => {
+        if (state.isOnline)
+          for (final kitchen in state.nearbyKitchens)
+            Marker(
+              markerId: MarkerId(kitchen.id),
+              position: LatLng(kitchen.latitude, kitchen.longitude),
+              icon: BitmapDescriptor.defaultMarkerWithHue(
+                BitmapDescriptor.hueOrange,
+              ),
+              infoWindow: InfoWindow(title: '${kitchen.emoji} ${kitchen.name}'),
+              onTap: () => AppSnackbar.showInfo(context, kitchen.name),
+            ),
+        if (state.riderLatitude != null && state.riderLongitude != null)
+          Marker(
+            markerId: const MarkerId('rider'),
+            position: LatLng(state.riderLatitude!, state.riderLongitude!),
+            icon: BitmapDescriptor.defaultMarkerWithHue(
+              BitmapDescriptor.hueBlue,
+            ),
+            infoWindow: const InfoWindow(title: 'Your Location'),
+          ),
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -208,93 +267,21 @@ class _MapLayer extends StatelessWidget {
         ? LatLng(state.riderLatitude!, state.riderLongitude!)
         : _defaultCenter;
 
-    final tileLayer = TileLayer(
-      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-      userAgentPackageName: 'com.rsc.rsc_rider',
-    );
-
-    return FlutterMap(
-      mapController: mapController,
-      options: MapOptions(
-        initialCenter: center,
-        initialZoom: 14.5,
-        interactionOptions: const InteractionOptions(
-          flags: InteractiveFlag.all,
-        ),
+    // Non-interactive while offline — the grey _OfflineOverlay sits on top.
+    return AbsorbPointer(
+      absorbing: !state.isOnline,
+      child: GoogleMap(
+        mapType: MapType.normal,
+        initialCameraPosition: CameraPosition(target: center, zoom: 14.5),
+        myLocationEnabled: true,
+        myLocationButtonEnabled: false,
+        zoomControlsEnabled: false,
+        compassEnabled: true,
+        onMapCreated: onMapCreated,
+        markers: _buildMarkers(context),
       ),
-      children: [
-        state.isOnline
-            ? tileLayer
-            : ColorFiltered(
-                colorFilter: const ColorFilter.matrix(_greyscaleMatrix),
-                child: tileLayer,
-              ),
-        if (state.isOnline)
-          MarkerLayer(
-            markers: [
-              for (final kitchen in state.nearbyKitchens)
-                Marker(
-                  point: LatLng(kitchen.latitude, kitchen.longitude),
-                  width: 60,
-                  height: 60,
-                  child: _KitchenMarker(kitchen: kitchen),
-                ),
-            ],
-          ),
-        if (state.riderLatitude != null && state.riderLongitude != null)
-          MarkerLayer(
-            markers: [
-              Marker(
-                point: LatLng(state.riderLatitude!, state.riderLongitude!),
-                width: 50,
-                height: 50,
-                child: BikeMarker(isOnline: state.isOnline),
-              ),
-            ],
-          ),
-      ],
     );
   }
-}
-
-class _KitchenMarker extends StatelessWidget {
-  const _KitchenMarker({required this.kitchen});
-
-  final MockKitchen kitchen;
-
-  @override
-  Widget build(BuildContext context) => GestureDetector(
-        onTap: () => AppSnackbar.showInfo(context, kitchen.name),
-        child: Container(
-          width: 60,
-          height: 60,
-          padding: const EdgeInsets.all(4),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.15),
-                blurRadius: 4,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(kitchen.emoji, style: const TextStyle(fontSize: 20)),
-              Text(
-                kitchen.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 8, color: AppColors.textPrimary),
-              ),
-            ],
-          ),
-        ),
-      );
 }
 
 class _TopBar extends StatelessWidget {
@@ -377,6 +364,8 @@ class _TopBar extends StatelessWidget {
                                 : AppColors.offlineRed,
                           ),
                         ),
+                        const SizedBox(height: AppSpacing.xs),
+                        const _SocketStatusIndicator(),
                         if (state.isOnline) ...[
                           const SizedBox(height: AppSpacing.xs),
                           _BroadcastIndicator(
@@ -406,6 +395,35 @@ class _TopBar extends StatelessWidget {
               ),
             ),
           ),
+        ),
+      );
+}
+
+class _SocketStatusIndicator extends StatelessWidget {
+  const _SocketStatusIndicator();
+
+  @override
+  Widget build(BuildContext context) => ValueListenableBuilder<bool>(
+        valueListenable: GetIt.instance<SocketService>().connectionStatus,
+        builder: (context, connected, _) => Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 6,
+              height: 6,
+              decoration: BoxDecoration(
+                color: connected ? AppColors.success : AppColors.neutralGray,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            Text(
+              connected ? AppStrings.live : AppStrings.reconnecting,
+              style: AppTextStyles.labelSmall.copyWith(
+                color: connected ? AppColors.success : AppColors.neutralGray,
+              ),
+            ),
+          ],
         ),
       );
 }
@@ -470,7 +488,9 @@ class _OfflineOverlay extends StatelessWidget {
   Widget build(BuildContext context) => Positioned.fill(
         child: IgnorePointer(
           child: Container(
-            color: Colors.black.withValues(alpha: 0.15),
+            // Grey wash to simulate greyscale — Google Maps platform views
+            // can't be wrapped in a ColorFiltered.
+            color: const Color(0x80808080),
             child: Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -550,20 +570,16 @@ class _BottomPanel extends StatelessWidget {
                       ],
                     ),
                   ),
+                  // Orders are loaded by DashboardBloc once the backend
+                  // confirms the rider is online — not here on tap.
                   _AvailabilitySwitch(
                     isOnline: state.isOnline,
-                    onTap: () {
-                      final isGoingOnline = !state.isOnline;
-                      context.read<DashboardBloc>().add(
-                        DashboardAvailabilityToggled(isOnline: isGoingOnline),
-                      );
-                      final activeOrdersCubit = context.read<ActiveOrdersCubit>();
-                      if (isGoingOnline) {
-                        activeOrdersCubit.startPolling();
-                      } else {
-                        activeOrdersCubit.stopPolling();
-                      }
-                    },
+                    isToggling: state.isTogglingAvailability,
+                    onTap: () => context.read<DashboardBloc>().add(
+                          DashboardAvailabilityToggled(
+                            isOnline: !state.isOnline,
+                          ),
+                        ),
                   ),
                 ],
               ),
@@ -686,10 +702,43 @@ class _RefreshButton extends StatelessWidget {
 }
 
 class _AvailabilitySwitch extends StatelessWidget {
-  const _AvailabilitySwitch({required this.isOnline, required this.onTap});
+  const _AvailabilitySwitch({
+    required this.isOnline,
+    required this.isToggling,
+    required this.onTap,
+  });
 
   final bool isOnline;
+  // While the availability API call is in flight: taps are ignored and a
+  // small spinner shows next to the switch.
+  final bool isToggling;
   final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (isToggling) ...[
+            const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppColors.primary,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+          ],
+          _SwitchTrack(isOnline: isOnline, onTap: isToggling ? null : onTap),
+        ],
+      );
+}
+
+class _SwitchTrack extends StatelessWidget {
+  const _SwitchTrack({required this.isOnline, required this.onTap});
+
+  final bool isOnline;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) => GestureDetector(

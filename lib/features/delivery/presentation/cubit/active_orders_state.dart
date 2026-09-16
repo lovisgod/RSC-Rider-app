@@ -9,6 +9,7 @@ class ActiveOrdersState extends Equatable {
     this.rejectingOrderId,
     this.error,
     this.activeDeliveryOrder,
+    this.startingOrderId,
   });
 
   final List<AssignedOrderEntity> orders;
@@ -18,6 +19,10 @@ class ActiveOrdersState extends Equatable {
   final String? error;
   final AssignedOrderEntity? activeDeliveryOrder;
 
+  // Order whose dispatch detail is being fetched after a "Start Delivery"
+  // tap — drives the loading state on that order's card.
+  final String? startingOrderId;
+
   ActiveOrdersState copyWith({
     List<AssignedOrderEntity>? orders,
     bool? isLoading,
@@ -25,9 +30,11 @@ class ActiveOrdersState extends Equatable {
     String? rejectingOrderId,
     String? error,
     AssignedOrderEntity? activeDeliveryOrder,
+    String? startingOrderId,
     bool clearError = false,
     bool clearRejectingOrderId = false,
     bool clearActiveDeliveryOrder = false,
+    bool clearStartingOrderId = false,
   }) =>
       ActiveOrdersState(
         orders: orders ?? this.orders,
@@ -40,6 +47,9 @@ class ActiveOrdersState extends Equatable {
         activeDeliveryOrder: clearActiveDeliveryOrder
             ? null
             : (activeDeliveryOrder ?? this.activeDeliveryOrder),
+        startingOrderId: clearStartingOrderId
+            ? null
+            : (startingOrderId ?? this.startingOrderId),
       );
 
   @override
@@ -50,5 +60,6 @@ class ActiveOrdersState extends Equatable {
         rejectingOrderId,
         error,
         activeDeliveryOrder,
+        startingOrderId,
       ];
 }

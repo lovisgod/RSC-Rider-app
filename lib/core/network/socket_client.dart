@@ -2,14 +2,16 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:rsc_rider/core/config/app_config.dart';
 import 'package:rsc_rider/core/storage/local_storage.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 class SocketClient {
-  SocketClient(this._storage);
+  SocketClient(this._storage, AppConfig appConfig)
+      : _socketUrl = appConfig.baseUrl;
 
   final LocalStorage _storage;
+  final String _socketUrl;
 
   WebSocketChannel? _channel;
   StreamController<Map<String, dynamic>>? _controller;
@@ -30,10 +32,7 @@ class SocketClient {
     final token = await _storage.getAccessToken();
     if (token == null) return;
 
-    final socketUrl = dotenv.env['SOCKET_URL'] ?? '';
-    if (socketUrl.isEmpty) return;
-
-    final uri = Uri.parse('$socketUrl?token=$token');
+    final uri = Uri.parse('$_socketUrl?token=$token');
 
     try {
       _controller ??= StreamController<Map<String, dynamic>>.broadcast();
@@ -48,7 +47,7 @@ class SocketClient {
         cancelOnError: false,
       );
 
-      debugPrint('[SocketClient] Connected to $socketUrl');
+      debugPrint('[SocketClient] Connected to $_socketUrl');
     } catch (e) {
       debugPrint('[SocketClient] Connection failed: $e');
       _scheduleReconnect();

@@ -1,4 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:rsc_rider/core/storage/local_storage.dart';
 import 'package:rsc_rider/features/notifications/domain/usecases/get_notifications_usecase.dart';
 import 'package:rsc_rider/features/notifications/domain/usecases/mark_notification_read_usecase.dart';
 import 'package:rsc_rider/features/notifications/presentation/cubit/notifications_state.dart';
@@ -7,12 +8,19 @@ class NotificationsCubit extends Cubit<NotificationsState> {
   NotificationsCubit({
     required this._getNotifications,
     required this._markNotificationRead,
+    required this._localStorage,
   }) : super(const NotificationsState());
 
   final GetNotificationsUsecase _getNotifications;
   final MarkNotificationReadUsecase _markNotificationRead;
+  final LocalStorage _localStorage;
 
   Future<void> loadNotifications() async {
+    // Never hit the notifications endpoint without a rider session — the
+    // call would just 401.
+    final riderId = await _localStorage.getRiderId();
+    if (riderId == null) return;
+
     emit(state.copyWith(isLoading: true, clearError: true));
     try {
       final notifications = await _getNotifications();

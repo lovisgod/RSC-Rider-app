@@ -29,7 +29,7 @@ class LocationBroadcastingService {
     _activeMasterOrderId = masterOrderId;
     _isRunning = true;
     _broadcastTimer = Timer.periodic(
-      const Duration(seconds: 10),
+      const Duration(seconds: 30),
       (_) => _broadcastCurrentLocation(),
     );
     await _broadcastCurrentLocation();

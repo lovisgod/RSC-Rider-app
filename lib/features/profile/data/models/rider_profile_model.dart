@@ -8,6 +8,8 @@ class RiderProfileModel {
     required this.phone,
     required this.role,
     this.avatarUrl,
+    this.vehicleType,
+    this.plateNumber,
   });
 
   final String id;
@@ -16,6 +18,8 @@ class RiderProfileModel {
   final String phone;
   final String role;
   final String? avatarUrl;
+  final String? vehicleType;
+  final String? plateNumber;
 
   factory RiderProfileModel.fromJson(Map<String, dynamic> json) =>
       RiderProfileModel(
@@ -25,6 +29,8 @@ class RiderProfileModel {
         phone: json['phone'] as String,
         role: json['role'] as String,
         avatarUrl: json['avatarUrl'] as String?,
+        vehicleType: json['vehicleType'] as String?,
+        plateNumber: json['plateNumber'] as String?,
       );
 
   RiderProfileEntity toEntity() => RiderProfileEntity(
@@ -34,5 +40,7 @@ class RiderProfileModel {
         phone: phone,
         role: role,
         avatarUrl: avatarUrl,
+        vehicleType: vehicleType,
+        plateNumber: plateNumber,
       );
 }

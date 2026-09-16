@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Rsc Rider</string>
+	<string>DineOut NG Rider</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -15,7 +15,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>rsc_rider</string>
+	<string>DineOut NG Rider</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -67,12 +67,14 @@
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>RSC Rider needs your location to show your position on the map.</string>
+	<string>DineOut NG Rider needs your location to show your position on the map.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>RSC Rider needs your location to track deliveries in the background.</string>
+	<string>DineOut NG Rider needs your location to track deliveries in the background.</string>
+	<key>io.flutter.embedded_views_preview</key>
+	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>RSC Rider needs camera to update your profile photo.</string>
+	<string>DineOut NG Rider needs camera to update your profile photo.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>RSC Rider needs photo library to update your profile photo.</string>
+	<string>DineOut NG Rider needs photo library to update your profile photo.</string>
 </dict>
 </plist>

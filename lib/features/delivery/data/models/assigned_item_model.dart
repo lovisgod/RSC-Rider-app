@@ -11,13 +11,15 @@ class AssignedItemModel {
 
   factory AssignedItemModel.fromJson(Map<String, dynamic> json) =>
       AssignedItemModel(
-        id: json['id'] as String,
-        name: json['name'] as String,
-        quantity: (json['quantity'] as num).toInt(),
+        id: json['id'] as String? ?? '',
+        name: json['name'] as String? ?? '',
+        quantity: (json['quantity'] as num?)?.toInt() ?? 0,
         modifiers: (json['modifiers'] as List<dynamic>? ?? [])
-            .map((m) => AssignedModifierModel.fromJson(
-                  Map<String, dynamic>.from(m as Map),
-                ))
+            .whereType<Map>()
+            .map(
+              (m) =>
+                  AssignedModifierModel.fromJson(Map<String, dynamic>.from(m)),
+            )
             .toList(),
       );
 
@@ -27,9 +29,9 @@ class AssignedItemModel {
   final List<AssignedModifierModel> modifiers;
 
   AssignedItemEntity toEntity() => AssignedItemEntity(
-        id: id,
-        name: name,
-        quantity: quantity,
-        modifiers: modifiers.map((m) => m.toEntity()).toList(),
-      );
+    id: id,
+    name: name,
+    quantity: quantity,
+    modifiers: modifiers.map((m) => m.toEntity()).toList(),
+  );
 }

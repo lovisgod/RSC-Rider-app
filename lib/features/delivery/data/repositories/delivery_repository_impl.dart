@@ -46,13 +46,23 @@ class DeliveryRepositoryImpl implements DeliveryRepository {
             ).toEntity(),
           )
           .toList();
-    } on DioException catch (e) {
-      if (e.response?.statusCode == 401) {
-        throw Exception(AppStrings.sessionExpired);
-      }
-      return [];
     } catch (_) {
+      // 401s are handled globally by SessionInterceptor. Any failure here
+      // keeps the dashboard's last known list rather than surfacing an error.
       return [];
+    }
+  }
+
+  @override
+  Future<AssignedOrderEntity> getDispatchDetail(String orderId) async {
+    try {
+      final response = await _client.dio.get<Map<String, dynamic>>(
+        ApiEndpoints.orderDispatch(orderId),
+      );
+      final data = response.data!['data'] as Map<String, dynamic>;
+      return AssignedOrderModel.fromJson(data).toEntity();
+    } on DioException catch (e) {
+      throw Exception(_genericMessage(e));
     }
   }
 
@@ -68,12 +78,11 @@ class DeliveryRepositoryImpl implements DeliveryRepository {
     }
   }
 
+  // 401s are handled globally by SessionInterceptor — no case for them here.
   String _message(DioException e) {
     switch (e.response?.statusCode) {
       case 400:
         return AppStrings.invalidDeliveryCode;
-      case 401:
-        return AppStrings.sessionExpired;
       case 403:
         return AppStrings.orderNotAssigned;
       case 404:
@@ -84,8 +93,6 @@ class DeliveryRepositoryImpl implements DeliveryRepository {
 
   String _genericMessage(DioException e) {
     switch (e.response?.statusCode) {
-      case 401:
-        return AppStrings.sessionExpired;
       case 403:
         return AppStrings.orderNotAssigned;
       case 404:

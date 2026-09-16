@@ -2,6 +2,8 @@ abstract final class RouteNames {
   // Public — no auth required
   static const String splash = '/';
   static const String login = '/login';
+  static const String forgotPassword = '/forgot-password';
+  static const String resetPassword = '/reset-password';
 
   // Shell tabs (require auth)
   static const String dashboard = '/dashboard';

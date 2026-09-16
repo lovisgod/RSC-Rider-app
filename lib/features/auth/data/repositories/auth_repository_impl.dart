@@ -1,6 +1,10 @@
+import 'package:dio/dio.dart';
+import 'package:rsc_rider/core/constants/app_strings.dart';
 import 'package:rsc_rider/core/storage/local_storage.dart';
 import 'package:rsc_rider/features/auth/data/datasources/auth_remote_data_source.dart';
+import 'package:rsc_rider/features/auth/data/models/forgot_password_request_model.dart';
 import 'package:rsc_rider/features/auth/data/models/login_request_model.dart';
+import 'package:rsc_rider/features/auth/data/models/reset_password_request_model.dart';
 import 'package:rsc_rider/features/auth/domain/entities/rider_entity.dart';
 import 'package:rsc_rider/features/auth/domain/repositories/auth_repository.dart';
 
@@ -40,6 +44,36 @@ class AuthRepositoryImpl implements AuthRepository {
       // Never block logout on a network failure — local state still clears.
     } finally {
       await _storage.clearSession();
+    }
+  }
+
+  @override
+  Future<int> forgotPassword(String identifier) async {
+    final response = await _dataSource.forgotPassword(
+      ForgotPasswordRequestModel(identifier: identifier),
+    );
+    return response.otpExpiresInSeconds;
+  }
+
+  @override
+  Future<void> resetPassword({
+    required String identifier,
+    required String code,
+    required String newPassword,
+  }) async {
+    try {
+      await _dataSource.resetPassword(
+        ResetPasswordRequestModel(
+          identifier: identifier,
+          code: code,
+          newPassword: newPassword,
+        ),
+      );
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401) {
+        throw Exception(AppStrings.invalidOrExpiredCode);
+      }
+      rethrow;
     }
   }
 }

@@ -9,5 +9,7 @@ abstract interface class DeliveryRepository {
 
   Future<List<AssignedOrderEntity>> getAssignedOrders();
 
+  Future<AssignedOrderEntity> getDispatchDetail(String orderId);
+
   Future<void> rejectOrder(String orderId, String reason);
 }

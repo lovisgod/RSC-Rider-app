@@ -26,6 +26,8 @@ final class DashboardLoaded extends DashboardState {
     this.riderLongitude,
     this.isLoadingLocation = false,
     this.locationError,
+    this.isTogglingAvailability = false,
+    this.availabilityError,
   });
 
   final String riderName;
@@ -36,6 +38,11 @@ final class DashboardLoaded extends DashboardState {
   final double? riderLongitude;
   final bool isLoadingLocation;
   final String? locationError;
+  // True while the availability PATCH is in flight — blocks double taps.
+  final bool isTogglingAvailability;
+  // One-shot: set when the availability call fails (after the optimistic
+  // flip is reverted), cleared on the next toggle attempt.
+  final String? availabilityError;
 
   DashboardLoaded copyWith({
     String? riderName,
@@ -47,6 +54,9 @@ final class DashboardLoaded extends DashboardState {
     bool? isLoadingLocation,
     String? locationError,
     bool clearLocationError = false,
+    bool? isTogglingAvailability,
+    String? availabilityError,
+    bool clearAvailabilityError = false,
   }) =>
       DashboardLoaded(
         riderName: riderName ?? this.riderName,
@@ -58,6 +68,11 @@ final class DashboardLoaded extends DashboardState {
         isLoadingLocation: isLoadingLocation ?? this.isLoadingLocation,
         locationError:
             clearLocationError ? null : (locationError ?? this.locationError),
+        isTogglingAvailability:
+            isTogglingAvailability ?? this.isTogglingAvailability,
+        availabilityError: clearAvailabilityError
+            ? null
+            : (availabilityError ?? this.availabilityError),
       );
 
   @override
@@ -70,6 +85,8 @@ final class DashboardLoaded extends DashboardState {
         riderLongitude,
         isLoadingLocation,
         locationError,
+        isTogglingAvailability,
+        availabilityError,
       ];
 }
 

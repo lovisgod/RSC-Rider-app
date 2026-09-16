@@ -1,4 +1,3 @@
-import 'package:dio/dio.dart';
 import 'package:rsc_rider/core/constants/api_endpoints.dart';
 import 'package:rsc_rider/core/network/dio_client.dart';
 import 'package:rsc_rider/core/utils/logger.dart';
@@ -27,13 +26,9 @@ class RiderLocationRepositoryImpl implements RiderLocationRepository {
           masterOrderId: masterOrderId,
         ).toJson(),
       );
-    } on DioException catch (e) {
-      if (e.response?.statusCode == 401) {
-        appLogger.w('[RiderLocation] Session expired while broadcasting.');
-      } else {
-        appLogger.w('[RiderLocation] Failed to record location.', error: e);
-      }
     } catch (e) {
+      // 401s are handled globally by SessionInterceptor (which also stops
+      // this broadcast's timer) — everything else is just logged.
       appLogger.w('[RiderLocation] Failed to record location.', error: e);
     }
   }

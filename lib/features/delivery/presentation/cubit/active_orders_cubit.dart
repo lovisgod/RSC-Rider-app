@@ -8,6 +8,7 @@ import 'package:rsc_rider/core/router/route_names.dart';
 import 'package:rsc_rider/core/services/location_broadcasting_service.dart';
 import 'package:rsc_rider/features/delivery/domain/entities/assigned_order_entity.dart';
 import 'package:rsc_rider/features/delivery/domain/usecases/get_assigned_orders_usecase.dart';
+import 'package:rsc_rider/features/delivery/domain/usecases/get_dispatch_detail_usecase.dart';
 import 'package:rsc_rider/features/delivery/domain/usecases/reject_order_usecase.dart';
 import 'package:rsc_rider/features/delivery/presentation/cubit/active_orders_state.dart';
 
@@ -15,14 +16,15 @@ class ActiveOrdersCubit extends Cubit<ActiveOrdersState> {
   ActiveOrdersCubit(
     this._getAssignedOrders,
     this._rejectOrder,
+    this._getDispatchDetail,
     this._locationBroadcastingService,
   ) : super(const ActiveOrdersState());
 
   final GetAssignedOrdersUsecase _getAssignedOrders;
   final RejectOrderUsecase _rejectOrder;
+  final GetDispatchDetailUsecase _getDispatchDetail;
   final LocationBroadcastingService _locationBroadcastingService;
 
-  Timer? _pollTimer;
   bool _hasLoadedOnce = false;
 
   Future<void> loadAssignedOrders() async {
@@ -39,18 +41,17 @@ class ActiveOrdersCubit extends Cubit<ActiveOrdersState> {
     }
   }
 
-  void startPolling() {
-    if (_pollTimer != null) return;
-    _pollTimer = Timer.periodic(
-      const Duration(seconds: 10),
-      (_) => loadAssignedOrders(),
-    );
-    unawaited(loadAssignedOrders());
-  }
-
-  void stopPolling() {
-    _pollTimer?.cancel();
-    _pollTimer = null;
+  // Same as loadAssignedOrders() but never emits isLoading: true — used for
+  // socket-triggered refreshes so the dashboard list doesn't flash on every
+  // order:status_update event.
+  Future<void> silentReloadAssignedOrders() async {
+    try {
+      final orders = await _getAssignedOrders();
+      _hasLoadedOnce = true;
+      emit(state.copyWith(orders: orders, clearError: true));
+    } catch (_) {
+      // Keep showing the last known list on a silent-reload failure.
+    }
   }
 
   // Adds an order built straight from a push notification payload — no API
@@ -59,33 +60,32 @@ class ActiveOrdersCubit extends Cubit<ActiveOrdersState> {
   void addOrderFromNotification(AssignedOrderEntity order) {
     final exists = state.orders.any((o) => o.orderId == order.orderId);
     if (exists) {
-      debugPrint('[RSC Rider] Order already in list: ${order.orderId}');
+      debugPrint('[DineOut NG Rider] Order already in list: ${order.orderId}');
       return;
     }
     emit(state.copyWith(orders: [order, ...state.orders]));
-    debugPrint('[RSC Rider] ✅ Order added from notification: ${order.orderId}');
+    debugPrint('[DineOut NG Rider] ✅ Order added from notification: ${order.orderId}');
   }
 
   Future<void> startDelivery(AssignedOrderEntity order) async {
-    var resolvedOrder = order;
+    emit(state.copyWith(startingOrderId: order.orderId));
 
-    // Orders built from a notification payload arrive without item details —
-    // fetch the full list and swap in the matching order before proceeding.
-    final hasItems =
-        order.outlets.isNotEmpty && order.outlets.first.items.isNotEmpty;
-    if (!hasItems) {
-      try {
-        final orders = await _getAssignedOrders();
-        resolvedOrder = orders.firstWhere(
-          (o) => o.orderId == order.orderId,
-          orElse: () => order,
-        );
-      } catch (e) {
-        debugPrint('[RSC Rider] Failed to fetch full order details: $e');
-      }
+    // The dispatch endpoint is the richest source (preparationNote, full
+    // items) — fetched on every tap. On failure fall back to the tapped
+    // order's data; never block the delivery from starting.
+    var resolvedOrder = order;
+    try {
+      resolvedOrder = await _getDispatchDetail(order.orderId);
+    } catch (e) {
+      debugPrint('[DineOut NG Rider] Dispatch fetch failed, using cached data: $e');
     }
 
-    emit(state.copyWith(activeDeliveryOrder: resolvedOrder));
+    emit(
+      state.copyWith(
+        activeDeliveryOrder: resolvedOrder,
+        clearStartingOrderId: true,
+      ),
+    );
     _locationBroadcastingService.updateMasterOrderId(resolvedOrder.orderId);
 
     unawaited(
@@ -127,9 +127,13 @@ class ActiveOrdersCubit extends Cubit<ActiveOrdersState> {
     _locationBroadcastingService.updateMasterOrderId(null);
   }
 
-  @override
-  Future<void> close() {
-    stopPolling();
-    return super.close();
+  // Called on logout. This cubit is a GetIt singleton that outlives any one
+  // rider's session — without this, the next rider to log in on the same app
+  // process would inherit the previous rider's stale orders/active delivery,
+  // which then leaks the wrong masterOrderId into location broadcasts.
+  void reset() {
+    _hasLoadedOnce = false;
+    _locationBroadcastingService.updateMasterOrderId(null);
+    emit(const ActiveOrdersState());
   }
 }

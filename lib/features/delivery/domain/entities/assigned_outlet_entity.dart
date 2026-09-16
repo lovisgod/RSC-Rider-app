@@ -11,6 +11,8 @@ class AssignedOutletEntity {
     required this.pickupCode,
     required this.status,
     required this.items,
+    this.preparationNote,
+    this.rejectionReason,
   });
 
   final String subOrderId;
@@ -22,4 +24,9 @@ class AssignedOutletEntity {
   final String pickupCode;
   final String status;
   final List<AssignedItemEntity> items;
+  final String? preparationNote;
+  final String? rejectionReason;
+
+  bool get hasPreparationNote =>
+      preparationNote != null && preparationNote!.trim().isNotEmpty;
 }

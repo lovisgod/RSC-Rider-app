@@ -15,8 +15,24 @@ class AssignedOrderCard extends StatelessWidget {
 
   bool get _isReady => order.status.toUpperCase() == 'READY';
 
+  // Once the rider is out for delivery the order can no longer be rejected.
+  bool get _canReject => order.status.toUpperCase() != 'OUT_FOR_DELIVERY';
+
+  String? get _preparationNote {
+    for (final outlet in order.outlets) {
+      if (outlet.hasPreparationNote) return outlet.preparationNote;
+    }
+    return null;
+  }
+
   @override
-  Widget build(BuildContext context) => Container(
+  Widget build(BuildContext context) {
+    // Rebuilds only this card's button while its dispatch detail is fetching.
+    final isStarting = context.select(
+      (ActiveOrdersCubit cubit) => cubit.state.startingOrderId == order.orderId,
+    );
+
+    return Container(
         margin: const EdgeInsets.only(bottom: AppSpacing.sm),
         padding: const EdgeInsets.all(AppSpacing.md),
         decoration: BoxDecoration(
@@ -119,37 +135,85 @@ class AssignedOrderCard extends StatelessWidget {
                   fontStyle: FontStyle.italic,
                 ),
               ),
+            if (_preparationNote != null) ...[
+              const SizedBox(height: AppSpacing.xs),
+              Row(
+                children: [
+                  const Text('📝', style: TextStyle(fontSize: 12)),
+                  const SizedBox(width: AppSpacing.xs),
+                  Expanded(
+                    child: Text(
+                      '${AppStrings.preparationNote}$_preparationNote',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.textSecondary,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: AppSpacing.md),
             Row(
               children: [
                 Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => showRejectOrderBottomSheet(
-                      context,
-                      orderId: order.orderId,
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: AppColors.error),
-                      foregroundColor: AppColors.error,
-                    ),
-                    child: const Text(AppStrings.reject),
-                  ),
+                  child: _canReject
+                      ? OutlinedButton(
+                          onPressed: () => showRejectOrderBottomSheet(
+                            context,
+                            orderId: order.orderId,
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: AppColors.error),
+                            foregroundColor: AppColors.error,
+                          ),
+                          child: const Text(AppStrings.reject),
+                        )
+                      : IgnorePointer(
+                          child: Opacity(
+                            opacity: 0.5,
+                            child: OutlinedButton(
+                              onPressed: null,
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(
+                                  color: AppColors.neutralGray,
+                                ),
+                                disabledForegroundColor: AppColors.neutralGray,
+                              ),
+                              child: const Text(AppStrings.reject),
+                            ),
+                          ),
+                        ),
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: ElevatedButton(
-                    // startDelivery fetches full item details when needed
-                    // and navigates to ActiveDeliveryScreen itself.
-                    onPressed: () =>
-                        context.read<ActiveOrdersCubit>().startDelivery(order),
+                    // startDelivery fetches the dispatch detail and
+                    // navigates to ActiveDeliveryScreen itself.
+                    onPressed: isStarting
+                        ? null
+                        : () => context
+                            .read<ActiveOrdersCubit>()
+                            .startDelivery(order),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.navy,
                       foregroundColor: AppColors.textOnDark,
                     ),
-                    child: const Text(
-                      AppStrings.startDelivery,
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
+                    child: isStarting
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.textOnDark,
+                            ),
+                          )
+                        : const Text(
+                            AppStrings.startDelivery,
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
                   ),
                 ),
               ],
@@ -157,4 +221,5 @@ class AssignedOrderCard extends StatelessWidget {
           ],
         ),
       );
+  }
 }

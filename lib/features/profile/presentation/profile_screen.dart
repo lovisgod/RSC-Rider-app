@@ -324,6 +324,36 @@ class _InfoCard extends StatelessWidget {
               value: profile.displayPhone,
               onTap: () => _openEdit(context),
             ),
+            // Vehicle is assigned by the admin — read-only, so no chevron and
+            // no tap target. Hidden entirely when no vehicle is set.
+            if (profile.displayVehicle.isNotEmpty) ...[
+              const Divider(
+                height: 1,
+                color: AppColors.divider,
+                indent: 16,
+                endIndent: 16,
+              ),
+              ListTile(
+                leading: const Icon(Icons.two_wheeler, color: AppColors.navy),
+                title: Text(
+                  AppStrings.vehicle,
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                trailing: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 180),
+                  child: Text(
+                    profile.displayVehicle,
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: AppColors.textPrimary,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
+            ] else
+              const SizedBox.shrink(),
           ],
         ),
       );
