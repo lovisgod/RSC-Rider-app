@@ -21,59 +21,58 @@ final class DashboardLoaded extends DashboardState {
     required this.riderName,
     required this.riderInitials,
     this.isOnline = false,
-    required this.todayEarnings,
-    required this.todayDeliveries,
-    required this.weekEarnings,
-    required this.weekDeliveries,
     this.nearbyKitchens = const [],
     this.riderLatitude,
     this.riderLongitude,
     this.isLoadingLocation = false,
     this.locationError,
+    this.isTogglingAvailability = false,
+    this.availabilityError,
   });
 
   final String riderName;
   final String riderInitials;
   final bool isOnline;
-  final double todayEarnings;
-  final int todayDeliveries;
-  final double weekEarnings;
-  final int weekDeliveries;
   final List<MockKitchen> nearbyKitchens;
   final double? riderLatitude;
   final double? riderLongitude;
   final bool isLoadingLocation;
   final String? locationError;
+  // True while the availability PATCH is in flight — blocks double taps.
+  final bool isTogglingAvailability;
+  // One-shot: set when the availability call fails (after the optimistic
+  // flip is reverted), cleared on the next toggle attempt.
+  final String? availabilityError;
 
   DashboardLoaded copyWith({
     String? riderName,
     String? riderInitials,
     bool? isOnline,
-    double? todayEarnings,
-    int? todayDeliveries,
-    double? weekEarnings,
-    int? weekDeliveries,
     List<MockKitchen>? nearbyKitchens,
     double? riderLatitude,
     double? riderLongitude,
     bool? isLoadingLocation,
     String? locationError,
     bool clearLocationError = false,
+    bool? isTogglingAvailability,
+    String? availabilityError,
+    bool clearAvailabilityError = false,
   }) =>
       DashboardLoaded(
         riderName: riderName ?? this.riderName,
         riderInitials: riderInitials ?? this.riderInitials,
         isOnline: isOnline ?? this.isOnline,
-        todayEarnings: todayEarnings ?? this.todayEarnings,
-        todayDeliveries: todayDeliveries ?? this.todayDeliveries,
-        weekEarnings: weekEarnings ?? this.weekEarnings,
-        weekDeliveries: weekDeliveries ?? this.weekDeliveries,
         nearbyKitchens: nearbyKitchens ?? this.nearbyKitchens,
         riderLatitude: riderLatitude ?? this.riderLatitude,
         riderLongitude: riderLongitude ?? this.riderLongitude,
         isLoadingLocation: isLoadingLocation ?? this.isLoadingLocation,
         locationError:
             clearLocationError ? null : (locationError ?? this.locationError),
+        isTogglingAvailability:
+            isTogglingAvailability ?? this.isTogglingAvailability,
+        availabilityError: clearAvailabilityError
+            ? null
+            : (availabilityError ?? this.availabilityError),
       );
 
   @override
@@ -81,15 +80,13 @@ final class DashboardLoaded extends DashboardState {
         riderName,
         riderInitials,
         isOnline,
-        todayEarnings,
-        todayDeliveries,
-        weekEarnings,
-        weekDeliveries,
         nearbyKitchens,
         riderLatitude,
         riderLongitude,
         isLoadingLocation,
         locationError,
+        isTogglingAvailability,
+        availabilityError,
       ];
 }
 

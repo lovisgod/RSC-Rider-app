@@ -4,6 +4,8 @@ abstract final class ApiEndpoints {
   static const String logout = '/auth/logout';
   static const String refreshToken = '/auth/refresh';
   static const String changePassword = '/auth/change-password';
+  static const String forgotPassword = '/auth/forgot-password';
+  static const String resetPassword = '/auth/reset-password';
 
   // User
   static const String userMe = '/users/me';
@@ -14,8 +16,9 @@ abstract final class ApiEndpoints {
   static const String toggleAvailability = '/rider/availability';
   static const String earnings = '/rider/earnings';
   static const String documents = '/rider/documents';
-  static const String registerFcmToken = '/rider/fcm-token';
   static const String recordRiderLocation = '/riders/locations';
+  // PATCH { "isAvailable": bool } — base URL already carries /api/v1.
+  static const String riderAvailability = '/riders/me/availability';
 
   // Dispatch
   static const String dispatchRequests = '/dispatch/requests';
@@ -23,12 +26,19 @@ abstract final class ApiEndpoints {
   static String rejectRequest(String id) => '/dispatch/requests/$id/reject';
 
   // Delivery
+  static const String orders = '/orders';
   static const String activeDelivery = '/deliveries/active';
   static String deliveryById(String id) => '/deliveries/$id';
   static String updateDeliveryStatus(String id) => '/deliveries/$id/status';
   static String updateRiderLocation(String id) => '/deliveries/$id/location';
   static String completeDelivery(String orderId) =>
       '/orders/$orderId/complete-delivery';
+  static String orderDispatch(String orderId) => '/orders/$orderId/dispatch';
+
+  // Rider assigned orders
+  static const String assignedOrders = '/riders/me/assigned-orders';
+  static String rejectAssignedOrder(String id) =>
+      '/riders/me/assigned-orders/$id/reject';
 
   // History
   static const String riderDeliveries = '/riders/me/deliveries';
@@ -36,4 +46,5 @@ abstract final class ApiEndpoints {
   // Notifications
   static const String notifications = '/notifications';
   static String markNotificationRead(String id) => '/notifications/$id/read';
+  static const String deviceToken = '/notifications/device-token';
 }

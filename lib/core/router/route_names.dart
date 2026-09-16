@@ -2,6 +2,8 @@ abstract final class RouteNames {
   // Public — no auth required
   static const String splash = '/';
   static const String login = '/login';
+  static const String forgotPassword = '/forgot-password';
+  static const String resetPassword = '/reset-password';
 
   // Shell tabs (require auth)
   static const String dashboard = '/dashboard';
@@ -11,7 +13,7 @@ abstract final class RouteNames {
 
   // Full-screen flows (require auth, no bottom nav)
   static const String incomingRequest = '/dispatch/request';
-  static const String activeDelivery = '/delivery/active';
+  static const String activeDelivery = '/active-delivery';
   static const String completeDelivery = '/complete-delivery';
 
   // Profile sub-routes

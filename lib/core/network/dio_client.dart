@@ -2,22 +2,23 @@ import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio/dio.dart';
 import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:rsc_rider/core/config/app_config.dart';
 import 'package:rsc_rider/core/network/error_interceptor.dart';
+import 'package:rsc_rider/core/network/session_interceptor.dart';
 
 class DioClient {
   DioClient({
+    required AppConfig appConfig,
+    required SessionInterceptor sessionInterceptor,
     required ErrorInterceptor errorInterceptor,
     required CookieJar cookieJar,
   }) {
-    final baseUrl = dotenv.env['API_BASE_URL'] ?? '';
-    final timeoutSecs =
-        int.tryParse(dotenv.env['API_TIMEOUT_SECONDS'] ?? '30') ?? 30;
-    final timeout = Duration(seconds: timeoutSecs);
+    const timeout = Duration(seconds: 30);
 
     _dio = Dio(
       BaseOptions(
-        baseUrl: baseUrl,
+        // apiBaseUrl carries /api/v1 — ApiEndpoints paths are relative to it.
+        baseUrl: appConfig.apiBaseUrl,
         connectTimeout: timeout,
         receiveTimeout: timeout,
         sendTimeout: timeout,
@@ -34,6 +35,9 @@ class DioClient {
       // Never set a cookie or Authorization header manually — this is the
       // only place a session is attached.
       CookieManager(cookieJar),
+      // Before ErrorInterceptor — it must see the raw 401 status, and
+      // ErrorInterceptor's handler.reject() would stop the chain before it.
+      sessionInterceptor,
       if (kDebugMode)
         LogInterceptor(
           requestBody: true,

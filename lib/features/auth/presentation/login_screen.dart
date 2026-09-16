@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
+import 'package:go_router/go_router.dart';
 import 'package:rsc_rider/core/constants/app_colors.dart';
 import 'package:rsc_rider/core/constants/app_spacing.dart';
 import 'package:rsc_rider/core/constants/app_strings.dart';
 import 'package:rsc_rider/core/constants/app_text_styles.dart';
+import 'package:rsc_rider/core/router/route_names.dart';
 import 'package:rsc_rider/core/utils/validators.dart';
 import 'package:rsc_rider/core/widgets/app_button.dart';
 import 'package:rsc_rider/core/widgets/app_snackbar.dart';
@@ -123,6 +125,22 @@ class _LoginViewState extends State<_LoginView> {
                             : AppStrings.login,
                         isLoading: isLoading,
                         onPressed: isLoading ? null : _submit,
+                      ),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: isLoading
+                              ? null
+                              : () =>
+                                  context.push(RouteNames.forgotPassword),
+                          child: Text(
+                            AppStrings.forgotPassword,
+                            style: AppTextStyles.bodySmall.copyWith(
+                              color: AppColors.primary,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
                       ),
                     ],
                   ),

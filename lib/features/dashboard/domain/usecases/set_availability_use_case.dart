@@ -1,11 +1,12 @@
-import 'package:rsc_rider/features/dashboard/domain/entities/rider_status_entity.dart';
-import 'package:rsc_rider/features/dashboard/domain/repositories/dashboard_repository.dart';
+import 'package:rsc_rider/features/dashboard/domain/repositories/availability_repository.dart';
 
 class SetAvailabilityUseCase {
   const SetAvailabilityUseCase(this._repository);
 
-  final DashboardRepository _repository;
+  final AvailabilityRepository _repository;
 
-  Future<RiderStatusEntity> call({required bool isOnline}) =>
-      _repository.setAvailability(isOnline: isOnline);
+  // Returns the backend-confirmed availability — callers must adopt this
+  // value rather than assume the request succeeded as sent.
+  Future<bool> call({required bool isAvailable}) =>
+      _repository.setAvailability(isAvailable);
 }

@@ -6,4 +6,13 @@ abstract interface class AuthRepository {
     required String password,
   });
   Future<void> logout();
+
+  /// Returns how many seconds the OTP is valid for.
+  Future<int> forgotPassword(String identifier);
+
+  Future<void> resetPassword({
+    required String identifier,
+    required String code,
+    required String newPassword,
+  });
 }

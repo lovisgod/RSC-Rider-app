@@ -4,8 +4,6 @@ import 'package:rsc_rider/core/constants/app_spacing.dart';
 import 'package:rsc_rider/core/constants/app_text_styles.dart';
 import 'package:rsc_rider/features/notifications/domain/entities/notification_entity.dart';
 
-const Color _unreadTint = Color(0xFFEEF3FB);
-
 class NotificationTile extends StatelessWidget {
   const NotificationTile({
     super.key,
@@ -21,7 +19,9 @@ class NotificationTile extends StatelessWidget {
         onTap: onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 300),
-          color: notification.isRead ? AppColors.surface : _unreadTint,
+          color: notification.isRead
+              ? AppColors.surface
+              : AppColors.rscSidebarActiveBg,
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.md,
             vertical: AppSpacing.sm + AppSpacing.xs,

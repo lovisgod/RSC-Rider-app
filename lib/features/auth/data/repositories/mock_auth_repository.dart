@@ -27,4 +27,19 @@ class MockAuthRepository implements AuthRepository {
     await Future.delayed(const Duration(milliseconds: 400));
     await _storage.clearSession();
   }
+
+  @override
+  Future<int> forgotPassword(String identifier) async {
+    await Future.delayed(const Duration(milliseconds: 800));
+    return 300;
+  }
+
+  @override
+  Future<void> resetPassword({
+    required String identifier,
+    required String code,
+    required String newPassword,
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 800));
+  }
 }

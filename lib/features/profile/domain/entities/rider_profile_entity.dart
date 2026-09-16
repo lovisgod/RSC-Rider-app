@@ -8,6 +8,8 @@ class RiderProfileEntity extends Equatable {
     required this.phone,
     required this.role,
     this.avatarUrl,
+    this.vehicleType,
+    this.plateNumber,
   });
 
   final String id;
@@ -16,11 +18,22 @@ class RiderProfileEntity extends Equatable {
   final String phone;
   final String role;
   final String? avatarUrl;
+  // Set by the admin, never editable from the app.
+  final String? vehicleType;
+  final String? plateNumber;
 
   // First letter of each word in the name, max 2 characters.
   String get initials {
     final words = name.trim().split(RegExp(r'\s+')).where((w) => w.isNotEmpty);
     return words.take(2).map((w) => w[0].toUpperCase()).join();
+  }
+
+  // e.g. "Motorcycle · LAG-234-XY"; empty when the admin hasn't set a vehicle.
+  String get displayVehicle {
+    if (vehicleType != null && plateNumber != null) {
+      return '${vehicleType!} · ${plateNumber!}';
+    }
+    return vehicleType ?? '';
   }
 
   // "2348031234117" -> "08031234117"
@@ -43,8 +56,11 @@ class RiderProfileEntity extends Equatable {
         phone: phone ?? this.phone,
         role: role,
         avatarUrl: avatarUrl ?? this.avatarUrl,
+        vehicleType: vehicleType,
+        plateNumber: plateNumber,
       );
 
   @override
-  List<Object?> get props => [id, name, email, phone, role, avatarUrl];
+  List<Object?> get props =>
+      [id, name, email, phone, role, avatarUrl, vehicleType, plateNumber];
 }

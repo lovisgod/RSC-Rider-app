@@ -1,12 +1,15 @@
 import 'dart:async';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:rsc_rider/core/constants/app_strings.dart';
 import 'package:rsc_rider/core/mock/mock_dashboard.dart';
 import 'package:rsc_rider/core/services/location_broadcasting_service.dart';
 import 'package:rsc_rider/core/services/location_service.dart';
 import 'package:rsc_rider/core/storage/local_storage.dart';
+import 'package:rsc_rider/features/dashboard/domain/usecases/set_availability_use_case.dart';
 import 'package:rsc_rider/features/dashboard/presentation/bloc/dashboard_event.dart';
 import 'package:rsc_rider/features/dashboard/presentation/bloc/dashboard_state.dart';
+import 'package:rsc_rider/features/delivery/presentation/cubit/active_orders_cubit.dart';
 import 'package:rsc_rider/features/profile/domain/usecases/get_rider_profile_usecase.dart';
 
 class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
@@ -15,9 +18,10 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     required this._locationService,
     required this._locationBroadcastingService,
     required this._getRiderProfile,
+    required this._setAvailability,
+    required this._activeOrdersCubit,
   }) : super(const DashboardInitial()) {
     on<DashboardStarted>(_onStarted);
-    on<DashboardRefreshRequested>(_onRefreshRequested);
     on<DashboardAvailabilityToggled>(_onAvailabilityToggled);
     on<DashboardLocationUpdated>(_onLocationUpdated);
   }
@@ -26,6 +30,8 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
   final LocationService _locationService;
   final LocationBroadcastingService _locationBroadcastingService;
   final GetRiderProfileUsecase _getRiderProfile;
+  final SetAvailabilityUseCase _setAvailability;
+  final ActiveOrdersCubit _activeOrdersCubit;
   StreamSubscription? _positionSubscription;
 
   Future<void> _onStarted(
@@ -35,47 +41,21 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     emit(const DashboardLoading());
     try {
       final riderName = await _resolveRiderName();
-      final wasOnline = await _localStorage.getOnlineStatus();
+      // Every fresh start is offline — an app restart must never silently
+      // mark the rider available; they confirm with the toggle each session.
+      // The API is intentionally NOT called here.
+      await _localStorage.saveOnlineStatus(false);
       emit(
         DashboardLoaded(
           riderName: riderName,
           riderInitials: _initialsOf(riderName),
-          isOnline: wasOnline,
-          todayEarnings: MockDashboard.todayEarnings,
-          todayDeliveries: MockDashboard.todayDeliveries,
-          weekEarnings: MockDashboard.weekEarnings,
-          weekDeliveries: MockDashboard.weekDeliveries,
-          nearbyKitchens: wasOnline ? MockDashboard.nearbyKitchens : const [],
           isLoadingLocation: true,
         ),
       );
-      if (wasOnline) {
-        final activeOrderId = await _localStorage.getActiveMasterOrderId();
-        await _locationBroadcastingService.startBroadcasting(
-          masterOrderId: activeOrderId,
-        );
-      }
       await _startLocationTracking(emit);
     } catch (e) {
       emit(DashboardError(e.toString()));
     }
-  }
-
-  Future<void> _onRefreshRequested(
-    DashboardRefreshRequested event,
-    Emitter<DashboardState> emit,
-  ) async {
-    final current = state;
-    if (current is! DashboardLoaded) return;
-
-    emit(
-      current.copyWith(
-        todayEarnings: MockDashboard.todayEarnings,
-        todayDeliveries: MockDashboard.todayDeliveries,
-        weekEarnings: MockDashboard.weekEarnings,
-        weekDeliveries: MockDashboard.weekDeliveries,
-      ),
-    );
   }
 
   Future<void> _onAvailabilityToggled(
@@ -84,24 +64,63 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
   ) async {
     final current = state;
     if (current is! DashboardLoaded) return;
+    // A previous toggle is still confirming with the backend — ignore.
+    if (current.isTogglingAvailability) return;
 
-    await _localStorage.saveOnlineStatus(event.isOnline);
+    final wasOnline = current.isOnline;
+    final goingOnline = event.isOnline;
 
-    if (event.isOnline) {
-      await _locationBroadcastingService.startBroadcasting(
-        masterOrderId: null,
-      );
-    } else {
-      _locationBroadcastingService.stopBroadcasting();
-    }
-
+    // Optimistic: flip the switch immediately, confirm with the API after.
     emit(
       current.copyWith(
-        isOnline: event.isOnline,
-        nearbyKitchens:
-            event.isOnline ? MockDashboard.nearbyKitchens : const [],
+        isOnline: goingOnline,
+        isTogglingAvailability: true,
+        nearbyKitchens: goingOnline ? MockDashboard.nearbyKitchens : const [],
+        clearAvailabilityError: true,
       ),
     );
+
+    try {
+      // The backend's isAvailable is the source of truth for the final state.
+      final isAvailable = await _setAvailability(isAvailable: goingOnline);
+      await _localStorage.saveOnlineStatus(isAvailable);
+
+      if (isAvailable) {
+        await _locationBroadcastingService.startBroadcasting(
+          masterOrderId: null,
+        );
+        // Seed the assigned-orders list the moment the rider comes online;
+        // socket events keep it fresh from here (there is no polling loop).
+        unawaited(_activeOrdersCubit.loadAssignedOrders());
+      } else {
+        _locationBroadcastingService.stopBroadcasting();
+      }
+
+      final latest = state;
+      if (latest is! DashboardLoaded) return;
+      emit(
+        latest.copyWith(
+          isOnline: isAvailable,
+          isTogglingAvailability: false,
+          nearbyKitchens:
+              isAvailable ? MockDashboard.nearbyKitchens : const [],
+        ),
+      );
+    } catch (_) {
+      // Revert the optimistic flip; the screen shows availabilityError as a
+      // snackbar. Broadcasting was never touched on this path, so the rider's
+      // previous online/offline behavior is fully intact.
+      final latest = state;
+      if (latest is! DashboardLoaded) return;
+      emit(
+        latest.copyWith(
+          isOnline: wasOnline,
+          isTogglingAvailability: false,
+          nearbyKitchens: wasOnline ? MockDashboard.nearbyKitchens : const [],
+          availabilityError: AppStrings.couldNotUpdateAvailability,
+        ),
+      );
+    }
   }
 
   void _onLocationUpdated(

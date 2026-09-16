@@ -83,6 +83,8 @@ class RiderProfileRepositoryImpl implements RiderProfileRepository {
         },
       );
     } on DioException catch (e) {
+      // Legitimate 401 — /auth/change-password returns it for a wrong current
+      // password. The endpoint is excluded from SessionInterceptor's paths.
       if (e.response?.statusCode == 401) {
         throw Exception('Current password is incorrect');
       }
@@ -95,8 +97,8 @@ class RiderProfileRepositoryImpl implements RiderProfileRepository {
     return RiderProfileModel.fromJson(data).toEntity();
   }
 
+  // 401s are handled globally by SessionInterceptor — no special case here.
   String _message(DioException e) {
-    if (e.response?.statusCode == 401) return AppStrings.sessionExpired;
     final error = e.error;
     return error is ApiFailure ? error.message : AppStrings.somethingWentWrong;
   }

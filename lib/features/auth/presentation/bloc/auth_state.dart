@@ -37,3 +37,21 @@ final class AuthFailure extends AuthState {
   @override
   List<Object> get props => [message];
 }
+
+final class ForgotPasswordSuccess extends AuthState {
+  const ForgotPasswordSuccess({
+    required this.otpExpiresInSeconds,
+    required this.identifier,
+  });
+
+  final int otpExpiresInSeconds;
+  // Passed forward to the reset screen via go_router extra.
+  final String identifier;
+
+  @override
+  List<Object> get props => [otpExpiresInSeconds, identifier];
+}
+
+final class ResetPasswordSuccess extends AuthState {
+  const ResetPasswordSuccess();
+}

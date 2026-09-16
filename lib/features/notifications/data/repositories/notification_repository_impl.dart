@@ -29,9 +29,7 @@ class NotificationRepositoryImpl implements NotificationRepository {
         ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
       return notifications;
     } on DioException catch (e) {
-      if (e.response?.statusCode == 401) {
-        throw Exception(AppStrings.sessionExpired);
-      }
+      // 401s are handled globally by SessionInterceptor — no special case.
       final error = e.error;
       throw Exception(
         error is ApiFailure ? error.message : AppStrings.somethingWentWrong,
