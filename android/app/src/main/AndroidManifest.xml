@@ -43,7 +43,7 @@
             android:value="rsc_rider_orders"/>
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="AIzaSyC9IT1AZUlJ5J7KFROlSmAMOj0PwrrzuC4"/>
+            android:value="${MAPS_API_KEY}"/>
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and
