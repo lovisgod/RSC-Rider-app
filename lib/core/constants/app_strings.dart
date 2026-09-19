@@ -100,6 +100,7 @@ abstract final class AppStrings {
       'Order not found. Please check the order ID.';
   static const String orderCancelledAlert =
       '⚠️ This order has been cancelled';
+  static const String routeMayBeOutdated = 'Route may be outdated — reconnecting…';
 
   // Assigned orders
   static const String assignedOrders = 'assigned order(s)';
@@ -150,6 +151,14 @@ abstract final class AppStrings {
       'Complete your first delivery to see your history here';
   static const String totalEarnings = 'TOTAL EARNINGS';
   static const String thisSession = 'THIS SESSION';
+  static const String deliveryMode = 'Delivery Mode';
+  static const String orderDetails = 'Order Details';
+  static const String orderId = 'Order ID';
+  static const String payoutStatus = 'Payout Status';
+  static const String completedOn = 'Completed On';
+  static const String amountEarned = 'Amount Earned';
+  static const String currency = 'Currency';
+  static const String orderIdCopied = 'Order ID copied to clipboard';
 
   // Profile
   static const String profile = 'Profile';

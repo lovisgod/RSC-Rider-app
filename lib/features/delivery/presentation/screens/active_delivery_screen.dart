@@ -12,7 +12,9 @@ import 'package:rsc_rider/core/constants/app_strings.dart';
 import 'package:rsc_rider/core/constants/app_text_styles.dart';
 import 'package:rsc_rider/core/models/route_result.dart';
 import 'package:rsc_rider/core/services/location_service.dart';
+import 'package:rsc_rider/core/utils/map_style.dart';
 import 'package:rsc_rider/core/utils/map_utils.dart';
+import 'package:rsc_rider/core/utils/rider_marker_icon.dart';
 import 'package:rsc_rider/core/services/routing_service.dart';
 import 'package:rsc_rider/core/services/socket_service.dart';
 import 'package:rsc_rider/core/widgets/app_button.dart';
@@ -58,16 +60,24 @@ class _ActiveDeliveryView extends StatefulWidget {
   State<_ActiveDeliveryView> createState() => _ActiveDeliveryViewState();
 }
 
-class _ActiveDeliveryViewState extends State<_ActiveDeliveryView> {
+class _ActiveDeliveryViewState extends State<_ActiveDeliveryView>
+    with SingleTickerProviderStateMixin {
   GoogleMapController? _mapController;
   final LocationService _locationService = GetIt.instance<LocationService>();
   final RoutingService _routingService = GetIt.instance<RoutingService>();
   final SocketService _socketService = GetIt.instance<SocketService>();
 
   StreamSubscription<Position>? _positionSubscription;
+  Timer? _routeRefreshTimer;
+  AnimationController? _riderAnimController;
   List<LatLng> _routePoints = [];
   RouteResult? _routeResult;
   LatLng? _riderPosition;
+  double _riderBearing = 0;
+  bool _routeStale = false;
+  bool _isRefreshingRoute = false;
+  BitmapDescriptor? _riderIcon;
+  String? _mapStyle;
 
   String get _orderRoom => 'order:${widget.order.orderId}';
 
@@ -78,6 +88,8 @@ class _ActiveDeliveryViewState extends State<_ActiveDeliveryView> {
   void initState() {
     super.initState();
     unawaited(_initRouteAndTracking());
+    unawaited(_loadRiderIcon());
+    unawaited(_loadMapStyle());
     _socketService.subscribeToRoom(_orderRoom);
     _socketService.on('order:status_update', _onOrderStatusUpdate);
     debugPrint('[DineOut NG Rider Socket] Tracking order: ${widget.order.orderId}');
@@ -125,19 +137,7 @@ class _ActiveDeliveryViewState extends State<_ActiveDeliveryView> {
       if (!mounted) return;
       final riderPoint = LatLng(position.latitude, position.longitude);
       setState(() => _riderPosition = riderPoint);
-
-      // Fetched once on open — never re-fetched on subsequent location ticks.
-      final route = await _routingService.getRoute(
-        position.latitude,
-        position.longitude,
-        widget.order.deliveryLatitude,
-        widget.order.deliveryLongitude,
-      );
-      if (!mounted) return;
-      setState(() {
-        _routeResult = route;
-        _routePoints = route?.points ?? [riderPoint, _destination];
-      });
+      await _fetchRoute(riderPoint);
       _fitMapToRoute();
     } catch (_) {
       // Rider position unavailable — map still renders without a route.
@@ -145,13 +145,95 @@ class _ActiveDeliveryViewState extends State<_ActiveDeliveryView> {
 
     _positionSubscription = _locationService.positionStream.listen((position) {
       if (!mounted) return;
-      setState(() => _riderPosition = LatLng(position.latitude, position.longitude));
+      _animateRiderTo(LatLng(position.latitude, position.longitude));
     });
+
+    // Directions are re-fetched periodically so the polyline keeps following
+    // the rider instead of staying frozen at the route drawn on screen-open.
+    _routeRefreshTimer = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) => _refreshRoute(),
+    );
+  }
+
+  Future<void> _fetchRoute(LatLng from) async {
+    final route = await _routingService.getRoute(
+      from.latitude,
+      from.longitude,
+      widget.order.deliveryLatitude,
+      widget.order.deliveryLongitude,
+    );
+    if (!mounted) return;
+    setState(() {
+      if (route != null) {
+        _routeResult = route;
+        _routePoints = route.points;
+        _routeStale = false;
+      } else if (_routePoints.isEmpty) {
+        // Only fall back to a straight line if there's no route to show at
+        // all yet — never discard a good polyline just because one refresh
+        // attempt failed.
+        _routePoints = [from, _destination];
+        _routeStale = true;
+      } else {
+        _routeStale = true;
+      }
+    });
+  }
+
+  Future<void> _refreshRoute() async {
+    final rider = _riderPosition;
+    if (rider == null || _isRefreshingRoute) return;
+    _isRefreshingRoute = true;
+    await _fetchRoute(rider);
+    _isRefreshingRoute = false;
+  }
+
+  // Glides the marker between GPS fixes instead of snapping, and rotates it
+  // to face the direction of travel.
+  void _animateRiderTo(LatLng next) {
+    final start = _riderPosition;
+    if (start == null) {
+      setState(() => _riderPosition = next);
+      return;
+    }
+    if (start.latitude == next.latitude && start.longitude == next.longitude) {
+      return;
+    }
+
+    final bearing = MapUtils.calculateBearing(start, next);
+    _riderAnimController?.dispose();
+    final controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    final animation = LatLngTween(begin: start, end: next).animate(controller);
+    animation.addListener(() {
+      if (!mounted) return;
+      setState(() {
+        _riderPosition = animation.value;
+        _riderBearing = bearing;
+      });
+    });
+    _riderAnimController = controller;
+    unawaited(controller.forward());
+  }
+
+  Future<void> _loadRiderIcon() async {
+    final icon = await RiderMarkerIcon.get();
+    if (mounted) setState(() => _riderIcon = icon);
+  }
+
+  Future<void> _loadMapStyle() async {
+    final style = await MapStyle.dark();
+    if (mounted) setState(() => _mapStyle = style);
   }
 
   @override
   void dispose() {
     _positionSubscription?.cancel();
+    _routeRefreshTimer?.cancel();
+    _riderAnimController?.dispose();
     _socketService.off('order:status_update', _onOrderStatusUpdate);
     _socketService.unsubscribeFromRoom(_orderRoom);
     _mapController?.dispose();
@@ -233,7 +315,11 @@ class _ActiveDeliveryViewState extends State<_ActiveDeliveryView> {
                 onBack: _confirmLeave,
                 onCenter: _centerOnRider,
               ),
-              _BottomDeliveryPanel(order: widget.order, routeResult: _routeResult),
+              _BottomDeliveryPanel(
+                order: widget.order,
+                routeResult: _routeResult,
+                routeStale: _routeStale,
+              ),
             ],
           ),
         ),
@@ -267,20 +353,27 @@ class _ActiveDeliveryViewState extends State<_ActiveDeliveryView> {
           Marker(
             markerId: const MarkerId('rider'),
             position: _riderPosition!,
-            icon: BitmapDescriptor.defaultMarkerWithHue(
-              BitmapDescriptor.hueBlue,
-            ),
+            rotation: _riderBearing,
+            anchor: const Offset(0.5, 0.5),
+            flat: true,
+            icon: _riderIcon ??
+                BitmapDescriptor.defaultMarkerWithHue(
+                  BitmapDescriptor.hueBlue,
+                ),
             infoWindow: const InfoWindow(title: '🏍️ You'),
           ),
       };
 
   Widget _buildMap() => GoogleMap(
         mapType: MapType.normal,
+        style: _mapStyle,
         initialCameraPosition: CameraPosition(
           target: _riderPosition ?? _destination,
           zoom: 13.0,
         ),
-        myLocationEnabled: true,
+        // The custom rotating rider marker above replaces the native blue
+        // dot — showing both at the same spot would be a duplicate.
+        myLocationEnabled: false,
         myLocationButtonEnabled: false,
         zoomControlsEnabled: false,
         compassEnabled: true,
@@ -291,8 +384,13 @@ class _ActiveDeliveryViewState extends State<_ActiveDeliveryView> {
             Polyline(
               polylineId: const PolylineId('route'),
               points: _routePoints,
-              color: AppColors.primary,
+              color: _routeStale
+                  ? AppColors.primary.withValues(alpha: 0.5)
+                  : AppColors.primary,
               width: 4,
+              patterns: _routeStale
+                  ? [PatternItem.dash(16), PatternItem.gap(8)]
+                  : [],
             ),
         },
       );
@@ -389,10 +487,15 @@ class _TopOverlayBar extends StatelessWidget {
 }
 
 class _BottomDeliveryPanel extends StatelessWidget {
-  const _BottomDeliveryPanel({required this.order, required this.routeResult});
+  const _BottomDeliveryPanel({
+    required this.order,
+    required this.routeResult,
+    required this.routeStale,
+  });
 
   final AssignedOrderEntity order;
   final RouteResult? routeResult;
+  final bool routeStale;
 
   @override
   Widget build(BuildContext context) => Positioned(
@@ -466,6 +569,15 @@ class _BottomDeliveryPanel extends StatelessWidget {
                     '~${routeResult!.displayDistance} · ~${routeResult!.displayDuration}',
                     style: AppTextStyles.bodySmall.copyWith(
                       color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+                if (routeStale) ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    AppStrings.routeMayBeOutdated,
+                    style: AppTextStyles.labelSmall.copyWith(
+                      color: AppColors.warning,
                     ),
                   ),
                 ],

@@ -12,6 +12,7 @@ import 'package:rsc_rider/core/constants/app_text_styles.dart';
 import 'package:rsc_rider/core/router/route_names.dart';
 import 'package:rsc_rider/core/services/location_service.dart';
 import 'package:rsc_rider/core/services/socket_service.dart';
+import 'package:rsc_rider/core/utils/map_style.dart';
 import 'package:rsc_rider/core/widgets/app_loader.dart';
 import 'package:rsc_rider/core/widgets/app_snackbar.dart';
 import 'package:rsc_rider/core/widgets/error_view.dart';
@@ -232,15 +233,33 @@ class _MapDashboard extends StatelessWidget {
       );
 }
 
-class _MapLayer extends StatelessWidget {
+class _MapLayer extends StatefulWidget {
   const _MapLayer({required this.state, required this.onMapCreated});
 
   final DashboardLoaded state;
   final void Function(GoogleMapController) onMapCreated;
 
+  @override
+  State<_MapLayer> createState() => _MapLayerState();
+}
+
+class _MapLayerState extends State<_MapLayer> {
+  String? _mapStyle;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_loadStyle());
+  }
+
+  Future<void> _loadStyle() async {
+    final style = await MapStyle.dark();
+    if (mounted) setState(() => _mapStyle = style);
+  }
+
   Set<Marker> _buildMarkers(BuildContext context) => {
-        if (state.isOnline)
-          for (final kitchen in state.nearbyKitchens)
+        if (widget.state.isOnline)
+          for (final kitchen in widget.state.nearbyKitchens)
             Marker(
               markerId: MarkerId(kitchen.id),
               position: LatLng(kitchen.latitude, kitchen.longitude),
@@ -250,19 +269,11 @@ class _MapLayer extends StatelessWidget {
               infoWindow: InfoWindow(title: '${kitchen.emoji} ${kitchen.name}'),
               onTap: () => AppSnackbar.showInfo(context, kitchen.name),
             ),
-        if (state.riderLatitude != null && state.riderLongitude != null)
-          Marker(
-            markerId: const MarkerId('rider'),
-            position: LatLng(state.riderLatitude!, state.riderLongitude!),
-            icon: BitmapDescriptor.defaultMarkerWithHue(
-              BitmapDescriptor.hueBlue,
-            ),
-            infoWindow: const InfoWindow(title: 'Your Location'),
-          ),
       };
 
   @override
   Widget build(BuildContext context) {
+    final state = widget.state;
     final center = state.riderLatitude != null && state.riderLongitude != null
         ? LatLng(state.riderLatitude!, state.riderLongitude!)
         : _defaultCenter;
@@ -272,12 +283,16 @@ class _MapLayer extends StatelessWidget {
       absorbing: !state.isOnline,
       child: GoogleMap(
         mapType: MapType.normal,
+        style: _mapStyle,
         initialCameraPosition: CameraPosition(target: center, zoom: 14.5),
+        // The native "my location" dot already shows the rider smoothly and
+        // rotates with device heading — a second custom pin at the same spot
+        // would just duplicate it.
         myLocationEnabled: true,
         myLocationButtonEnabled: false,
         zoomControlsEnabled: false,
         compassEnabled: true,
-        onMapCreated: onMapCreated,
+        onMapCreated: widget.onMapCreated,
         markers: _buildMarkers(context),
       ),
     );

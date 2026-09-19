@@ -65,7 +65,9 @@ class _CodeBoxInputState extends State<CodeBoxInput> {
                 textAlign: TextAlign.center,
                 keyboardType: TextInputType.number,
                 maxLength: 1,
-                style: AppTextStyles.headlineSmall,
+                style: AppTextStyles.headlineSmall.copyWith(
+                  color: AppColors.rscFieldInk,
+                ),
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 decoration: InputDecoration(
                   counterText: '',

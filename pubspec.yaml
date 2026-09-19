@@ -74,3 +74,4 @@ flutter:
     - .env.development
     - .env.staging
     - .env.production
+    - assets/map_style/
