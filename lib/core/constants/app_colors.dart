@@ -23,13 +23,14 @@ abstract final class AppColors {
   static const Color rscDanger = Color(0xFFF08070);
   static const Color rscSuccess = Color(0xFF50C982);
 
-  /// Form fields (login, addresses, any bordered text field) stay white
-  /// pills even against the dark theme — that's the real design, not a
-  /// dark-mode gap. [rscFieldMuted] is calibrated for legibility on that
-  /// white fill and is used for field hint/label text, not general text.
-  static const Color rscFieldBg = Color(0xFFFFFFFF);
-  static const Color rscFieldInk = Color(0xFF111712);
-  static const Color rscFieldMuted = Color(0xFF6D7B70);
+  /// Form fields (login, addresses, any bordered text field) use a dark
+  /// elevated fill so they match the surrounding dark theme instead of
+  /// showing up as light pills. [rscFieldMuted] is calibrated for
+  /// legibility on that dark fill and is used for field hint/label text,
+  /// not general text.
+  static const Color rscFieldBg = Color(0xFF1C2420);
+  static const Color rscFieldInk = Color(0xFFF5F7F2);
+  static const Color rscFieldMuted = Color(0xFF9BA79F);
 
   // ─── Navigation ────────────────────────────────────────
   static const Color rscSidebarBg = Color(0xFF0F1712);
@@ -76,7 +77,7 @@ abstract final class AppColors {
   static const Color info = rscNavyLight;
   static const Color neutralGray = rscMuted;
 
-  static const Color inputBorder = Color(0xFFD1D5DB);
+  static const Color inputBorder = rscLine;
   static const Color inputBorderFocused = primary;
   static const Color divider = rscLine;
   static const Color shimmer = rscLine;

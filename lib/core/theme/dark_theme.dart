@@ -86,7 +86,6 @@ final class DarkTheme {
       ),
     ),
     inputDecorationTheme: InputDecorationTheme(
-      // Form fields stay white even on the dark theme — see AppColors.rscFieldBg.
       filled: true,
       fillColor: AppColors.rscFieldBg,
       contentPadding: const EdgeInsets.symmetric(

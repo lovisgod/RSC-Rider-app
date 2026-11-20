@@ -288,7 +288,7 @@ class _MapLayerState extends State<_MapLayer> {
         // The native "my location" dot already shows the rider smoothly and
         // rotates with device heading — a second custom pin at the same spot
         // would just duplicate it.
-        myLocationEnabled: true,
+        myLocationEnabled: false,
         myLocationButtonEnabled: false,
         zoomControlsEnabled: false,
         compassEnabled: true,

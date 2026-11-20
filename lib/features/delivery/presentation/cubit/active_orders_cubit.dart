@@ -122,6 +122,25 @@ class ActiveOrdersCubit extends Cubit<ActiveOrdersState> {
     }
   }
 
+  // Re-fetches the active delivery's dispatch detail so outlet statuses
+  // (e.g. READY → COLLECTED) and the overall order status reflect the
+  // backend immediately — called when a socket status_update arrives for
+  // this order while ActiveDeliveryScreen is open. Never emits on failure
+  // or if the delivery has since ended; the screen just keeps showing what
+  // it already had.
+  Future<void> refreshActiveDeliveryOrder() async {
+    final current = state.activeDeliveryOrder;
+    if (current == null) return;
+    try {
+      final refreshed = await _getDispatchDetail(current.orderId);
+      if (state.activeDeliveryOrder?.orderId == current.orderId) {
+        emit(state.copyWith(activeDeliveryOrder: refreshed));
+      }
+    } catch (e) {
+      debugPrint('[DineOut NG Rider] Failed to refresh active delivery order: $e');
+    }
+  }
+
   void clearActiveDelivery() {
     emit(state.copyWith(clearActiveDeliveryOrder: true));
     _locationBroadcastingService.updateMasterOrderId(null);

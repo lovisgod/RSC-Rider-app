@@ -12,6 +12,7 @@ import 'package:rsc_rider/core/constants/app_strings.dart';
 import 'package:rsc_rider/core/constants/app_text_styles.dart';
 import 'package:rsc_rider/core/models/route_result.dart';
 import 'package:rsc_rider/core/services/location_service.dart';
+import 'package:rsc_rider/core/services/location_broadcasting_service.dart';
 import 'package:rsc_rider/core/utils/map_style.dart';
 import 'package:rsc_rider/core/utils/map_utils.dart';
 import 'package:rsc_rider/core/utils/rider_marker_icon.dart';
@@ -22,6 +23,7 @@ import 'package:rsc_rider/core/widgets/app_snackbar.dart';
 import 'package:rsc_rider/features/delivery/domain/entities/assigned_order_entity.dart';
 import 'package:rsc_rider/features/delivery/domain/entities/assigned_outlet_entity.dart';
 import 'package:rsc_rider/features/delivery/presentation/cubit/active_orders_cubit.dart';
+import 'package:rsc_rider/features/delivery/presentation/cubit/active_orders_state.dart';
 import 'package:rsc_rider/features/delivery/presentation/cubit/delivery_cubit.dart';
 import 'package:rsc_rider/features/delivery/presentation/cubit/delivery_state.dart';
 import 'package:rsc_rider/features/delivery/presentation/widgets/delivery_code_sheet.dart';
@@ -68,6 +70,7 @@ class _ActiveDeliveryViewState extends State<_ActiveDeliveryView>
   final SocketService _socketService = GetIt.instance<SocketService>();
 
   StreamSubscription<Position>? _positionSubscription;
+  StreamSubscription<ActiveOrdersState>? _activeOrdersSubscription;
   Timer? _routeRefreshTimer;
   AnimationController? _riderAnimController;
   List<LatLng> _routePoints = [];
@@ -78,21 +81,106 @@ class _ActiveDeliveryViewState extends State<_ActiveDeliveryView>
   bool _isRefreshingRoute = false;
   BitmapDescriptor? _riderIcon;
   String? _mapStyle;
+  late AssignedOrderEntity _order;
 
   String get _orderRoom => 'order:${widget.order.orderId}';
 
   LatLng get _destination =>
-      LatLng(widget.order.deliveryLatitude, widget.order.deliveryLongitude);
+      LatLng(_order.deliveryLatitude, _order.deliveryLongitude);
 
   @override
   void initState() {
     super.initState();
-    unawaited(_initRouteAndTracking());
+    _order = widget.order;
     unawaited(_loadRiderIcon());
     unawaited(_loadMapStyle());
     _socketService.subscribeToRoom(_orderRoom);
     _socketService.on('order:status_update', _onOrderStatusUpdate);
     debugPrint('[DineOut NG Rider Socket] Tracking order: ${widget.order.orderId}');
+    // Mirrors the home screen's live-update behaviour: ActiveOrdersCubit is
+    // the single source of truth for this order's status, refreshed by
+    // _onOrderStatusUpdate below — so the pickup cards/header update here
+    // too, without the rider needing to leave and reopen this screen.
+    _activeOrdersSubscription =
+        GetIt.instance<ActiveOrdersCubit>().stream.listen((state) {
+      final updated = state.activeDeliveryOrder;
+      if (mounted && updated != null && updated.orderId == widget.order.orderId) {
+        setState(() => _order = updated);
+      }
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(_requestTrackingPermissionAndStart());
+    });
+  }
+
+  Future<void> _requestTrackingPermissionAndStart() async {
+    final accepted = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Location for delivery progress'),
+        content: const Text(
+          'Your location is used during this active delivery to update delivery '
+          'progress for the customer. It is not shared when you are not '
+          'delivering.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Not now'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Continue'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || accepted != true) return;
+
+    final permission = await _locationService.checkAndRequestPermission();
+    if (!mounted) return;
+    if (permission != LocationPermissionStatus.granted &&
+        permission != LocationPermissionStatus.grantedWhileInUse) {
+      final isAppSettings = permission == LocationPermissionStatus.deniedForever;
+      final isLocationSettings =
+          permission == LocationPermissionStatus.serviceDisabled;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isAppSettings
+                ? 'Allow location access in Settings to share delivery progress.'
+                : isLocationSettings
+                    ? 'Turn on location services to share delivery progress.'
+                    : 'Location is unavailable. Delivery tracking will not update.',
+          ),
+          action: isAppSettings || isLocationSettings
+              ? SnackBarAction(
+                  label: 'Settings',
+                  onPressed: () {
+                    if (isAppSettings) {
+                      _locationService.openAppSettings();
+                    } else {
+                      _locationService.openSettings();
+                    }
+                  },
+                )
+              : null,
+        ),
+      );
+      return;
+    }
+    if (permission == LocationPermissionStatus.grantedWhileInUse) {
+      AppSnackbar.showWarning(
+        context,
+        'Background updates may pause because location is allowed only while the app is open.',
+      );
+    }
+
+    // TODO(confirm): Verify this screen's order state matches the backend's
+    // definition of an active delivery before enabling location updates.
+    GetIt.instance<LocationBroadcastingService>()
+        .updateMasterOrderId(widget.order.orderId);
+    await _initRouteAndTracking();
   }
 
   void _onOrderStatusUpdate(dynamic data) {
@@ -109,6 +197,8 @@ class _ActiveDeliveryViewState extends State<_ActiveDeliveryView>
       final status = (payload['status'] as String?)?.toUpperCase();
 
       if (status == 'CANCELLED') {
+        GetIt.instance<LocationBroadcastingService>().stopBroadcasting();
+        GetIt.instance<ActiveOrdersCubit>().clearActiveDelivery();
         if (mounted) {
           AppSnackbar.showError(context, AppStrings.orderCancelledAlert);
         }
@@ -120,10 +210,22 @@ class _ActiveDeliveryViewState extends State<_ActiveDeliveryView>
           'dashboard',
         );
       } else if (status == 'DELIVERED') {
+        GetIt.instance<LocationBroadcastingService>().stopBroadcasting();
+        GetIt.instance<ActiveOrdersCubit>().clearActiveDelivery();
         // Should not happen mid-delivery, but handle gracefully.
         debugPrint(
           '[DineOut NG Rider Socket] Order marked delivered: '
           '${payload['masterOrderId']}',
+        );
+      } else {
+        // An outlet moving to COLLECTED, the order moving to
+        // OUT_FOR_DELIVERY, etc. — refresh so the pickup cards and header
+        // reflect it immediately instead of only after the rider reopens
+        // this screen.
+        unawaited(GetIt.instance<ActiveOrdersCubit>().refreshActiveDeliveryOrder());
+        debugPrint(
+          '[DineOut NG Rider Socket] Refreshing active delivery order for '
+          'status: $status',
         );
       }
     } catch (e) {
@@ -160,8 +262,8 @@ class _ActiveDeliveryViewState extends State<_ActiveDeliveryView>
     final route = await _routingService.getRoute(
       from.latitude,
       from.longitude,
-      widget.order.deliveryLatitude,
-      widget.order.deliveryLongitude,
+      _order.deliveryLatitude,
+      _order.deliveryLongitude,
     );
     if (!mounted) return;
     setState(() {
@@ -232,6 +334,7 @@ class _ActiveDeliveryViewState extends State<_ActiveDeliveryView>
   @override
   void dispose() {
     _positionSubscription?.cancel();
+    _activeOrdersSubscription?.cancel();
     _routeRefreshTimer?.cancel();
     _riderAnimController?.dispose();
     _socketService.off('order:status_update', _onOrderStatusUpdate);
@@ -311,12 +414,12 @@ class _ActiveDeliveryViewState extends State<_ActiveDeliveryView>
             children: [
               _buildMap(),
               _TopOverlayBar(
-                order: widget.order,
+                order: _order,
                 onBack: _confirmLeave,
                 onCenter: _centerOnRider,
               ),
               _BottomDeliveryPanel(
-                order: widget.order,
+                order: _order,
                 routeResult: _routeResult,
                 routeStale: _routeStale,
               ),
@@ -326,7 +429,7 @@ class _ActiveDeliveryViewState extends State<_ActiveDeliveryView>
       );
 
   Set<Marker> _buildDeliveryMarkers() => {
-        for (final outlet in widget.order.outlets)
+        for (final outlet in _order.outlets)
           Marker(
             markerId: MarkerId('outlet_${outlet.outletId}'),
             position: LatLng(outlet.pickupLatitude, outlet.pickupLongitude),
@@ -346,7 +449,7 @@ class _ActiveDeliveryViewState extends State<_ActiveDeliveryView>
           ),
           infoWindow: InfoWindow(
             title: '📍 Delivery',
-            snippet: widget.order.deliveryAddress,
+            snippet: _order.deliveryAddress,
           ),
         ),
         if (_riderPosition != null)

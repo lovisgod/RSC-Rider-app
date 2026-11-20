@@ -4,6 +4,8 @@ The environment is selected by two things together:
 
 - `--flavor` — picks the Android product flavor (app id, app name, google-services.json)
 - `--dart-define=ENVIRONMENT=...` — picks the `AppConfig` (base URL) inside Dart
+- Optional `--dart-define=BASE_URL=https://...` — overrides the selected
+  environment host without changing the `/api/v1` prefix.
 
 Always pass both, and keep them matching.
 
@@ -53,6 +55,8 @@ flutter build apk \
 
 - Running without `--dart-define` falls back to `development`
   (see `AppConfig.fromEnvironment`).
+- `BASE_URL` takes precedence over the environment's default host and should
+  not include the `/api/v1` path.
 - All base URLs live in `lib/core/config/app_config.dart` — no URLs in
   `.env` files or anywhere else in Dart.
 - `.env.<environment>` files still exist but carry secrets only

@@ -14,19 +14,19 @@ class AppConfig {
 
   static const AppConfig development = AppConfig._(
     environment: 'development',
-    baseUrl: 'https://api-dev.rscdev.tech',
+    baseUrl: 'https://dev.dineout.com.ng',
     appName: 'DineOut NG Rider Dev',
   );
 
   static const AppConfig staging = AppConfig._(
     environment: 'staging',
-    baseUrl: 'https://api-staging.rscdev.tech',
+    baseUrl: 'https://staging.dineout.com.ng',
     appName: 'DineOut NG Rider Staging',
   );
 
   static const AppConfig production = AppConfig._(
     environment: 'production',
-    baseUrl: 'https://api.rscdev.tech',
+    baseUrl: 'https://dineout.com.ng',
     appName: 'DineOut NG Rider',
   );
 

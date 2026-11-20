@@ -72,9 +72,6 @@ class _AppTextFieldState extends State<AppTextField> {
       validator: widget.validator,
       inputFormatters: widget.inputFormatters,
       autofocus: widget.autofocus,
-      // Fields are white pills in both themes (see AppColors.rscFieldBg) —
-      // the typed text needs a fixed dark ink, not the theme's general
-      // (theme-varying) body text color.
       style: AppTextStyles.bodyLarge.copyWith(color: AppColors.rscFieldInk),
       decoration: InputDecoration(
         labelText: widget.label,

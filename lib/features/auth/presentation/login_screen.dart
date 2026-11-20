@@ -158,23 +158,10 @@ class _BrandMark extends StatelessWidget {
   const _BrandMark();
 
   @override
-  Widget build(BuildContext context) => Row(
-        children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              color: AppColors.navy,
-              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-            ),
-            child: const Icon(
-              Icons.delivery_dining,
-              color: AppColors.textOnDark,
-              size: 30,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          const Text(AppStrings.appName, style: AppTextStyles.headlineLarge),
-        ],
+  Widget build(BuildContext context) => Image.asset(
+        'assets/images/dineout_logo_light.png',
+        height: 56,
+        fit: BoxFit.contain,
+        alignment: Alignment.centerLeft,
       );
 }
