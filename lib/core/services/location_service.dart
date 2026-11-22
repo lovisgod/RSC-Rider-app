@@ -1,15 +1,51 @@
+import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:rsc_rider/core/utils/logger.dart';
 
 class LocationService {
+  // TODO(confirm): Confirm the required Android/iOS Always permission flow;
+  // background updates are best-effort when only while-in-use is granted.
   // High-accuracy stream used during active deliveries.
   // distanceFilter: only emits after the rider moves at least 10 m.
   Stream<Position> get positionStream => Geolocator.getPositionStream(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-          distanceFilter: 10,
+    locationSettings: const LocationSettings(
+      accuracy: LocationAccuracy.high,
+      distanceFilter: 10,
+    ),
+  );
+
+  Stream<Position> get backgroundPositionStream => Geolocator.getPositionStream(
+    locationSettings: _backgroundLocationSettings,
+  );
+
+  LocationSettings get _backgroundLocationSettings {
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      return AndroidSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 25,
+        foregroundNotificationConfig: const ForegroundNotificationConfig(
+          notificationTitle: 'Delivery in progress',
+          notificationText:
+              'Your location is shared to update delivery progress.',
+          enableWakeLock: true,
         ),
       );
+    }
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
+      return AppleSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 25,
+        allowBackgroundLocationUpdates: true,
+        pauseLocationUpdatesAutomatically: false,
+        showBackgroundLocationIndicator: true,
+        activityType: ActivityType.automotiveNavigation,
+      );
+    }
+    return const LocationSettings(
+      accuracy: LocationAccuracy.high,
+      distanceFilter: 25,
+    );
+  }
 
   Future<Position> getCurrentPosition({Duration? timeLimit}) =>
       Geolocator.getCurrentPosition(
@@ -38,6 +74,9 @@ class LocationService {
     }
 
     appLogger.i('[Location] Permission granted: $permission');
+    if (permission == LocationPermission.whileInUse) {
+      return LocationPermissionStatus.grantedWhileInUse;
+    }
     return LocationPermissionStatus.granted;
   }
 
@@ -52,6 +91,7 @@ class LocationService {
 
 enum LocationPermissionStatus {
   granted,
+  grantedWhileInUse,
   denied,
   deniedForever,
   serviceDisabled,

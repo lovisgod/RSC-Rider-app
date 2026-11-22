@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:rsc_rider/core/constants/app_colors.dart';
 import 'package:rsc_rider/core/constants/app_spacing.dart';
-import 'package:rsc_rider/core/constants/app_strings.dart';
-import 'package:rsc_rider/core/constants/app_text_styles.dart';
 import 'package:rsc_rider/core/widgets/app_loader.dart';
 
 // Shown while AuthNotifier reads secure storage on first launch.
@@ -17,25 +15,10 @@ class SplashScreen extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: AppColors.textOnDark.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
-                ),
-                child: const Icon(
-                  Icons.delivery_dining,
-                  color: AppColors.textOnDark,
-                  size: 48,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Text(
-                AppStrings.appName,
-                style: AppTextStyles.displayMedium.copyWith(
-                  color: AppColors.textOnDark,
-                ),
+              Image.asset(
+                'assets/images/dineout_logo_light.png',
+                width: 220,
+                fit: BoxFit.contain,
               ),
               const SizedBox(height: AppSpacing.xxl),
               const AppLoader(color: AppColors.textOnDark),

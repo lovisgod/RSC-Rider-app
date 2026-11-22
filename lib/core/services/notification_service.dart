@@ -74,7 +74,6 @@ class NotificationService {
     try {
       final token = await _messaging.getToken();
       if (token != null) {
-        appLogger.i('[FCM] Token: $token');
         await _saveTokenToBackend(token);
       }
     } catch (e) {

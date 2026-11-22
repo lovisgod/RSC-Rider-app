@@ -51,6 +51,10 @@
 	</dict>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
@@ -69,9 +73,9 @@
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>DineOut NG Rider needs your location to show your position on the map.</string>
+	<string>DineOut NG Rider uses your location during an active delivery to update delivery progress for the customer.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>DineOut NG Rider needs your location to track deliveries in the background.</string>
+	<string>DineOut NG Rider uses your location during an active delivery, including in the background, to update delivery progress for the customer.</string>
 	<key>io.flutter.embedded_views_preview</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>

@@ -17,6 +17,10 @@ abstract final class ApiEndpoints {
   static const String earnings = '/rider/earnings';
   static const String documents = '/rider/documents';
   static const String recordRiderLocation = '/riders/locations';
+  static String riderLocation(String orderId) =>
+      '/orders/$orderId/rider-location';
+  static String riderLocationStream(String orderId) =>
+      '/orders/$orderId/rider-location/stream';
   // PATCH { "isAvailable": bool } — base URL already carries /api/v1.
   static const String riderAvailability = '/riders/me/availability';
 

@@ -20,4 +20,7 @@ abstract final class RouteNames {
   static const String editProfile = '/profile/edit';
   static const String documents = '/profile/documents';
   static const String changePassword = '/profile/change-password';
+
+  // History sub-routes
+  static const String historyDetail = '/history/detail';
 }

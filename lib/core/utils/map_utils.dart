@@ -1,6 +1,20 @@
 import 'dart:math';
+import 'dart:ui' show lerpDouble;
 
+import 'package:flutter/animation.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+
+// Interpolates between two coordinates so a marker can glide across the map
+// instead of snapping straight to each new GPS fix.
+class LatLngTween extends Tween<LatLng> {
+  LatLngTween({required super.begin, required super.end});
+
+  @override
+  LatLng lerp(double t) => LatLng(
+        lerpDouble(begin!.latitude, end!.latitude, t)!,
+        lerpDouble(begin!.longitude, end!.longitude, t)!,
+      );
+}
 
 abstract final class MapUtils {
   // Calculates the compass bearing (0–360°) from [from] to [to].

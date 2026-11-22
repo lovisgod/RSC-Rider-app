@@ -158,6 +158,8 @@ Future<void> setupDependencies(
       () => LocationBroadcastingService(
         getIt<RecordRiderLocationUsecase>(),
         getIt<LocationService>(),
+        onOrderNotAssigned: () =>
+            getIt<ActiveOrdersCubit>().silentReloadAssignedOrders(),
       ),
     );
 

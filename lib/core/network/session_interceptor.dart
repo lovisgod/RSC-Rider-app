@@ -44,6 +44,8 @@ class SessionInterceptor extends Interceptor {
     '/auth/logout',
   ];
 
+  // TODO(confirm): The current backend session is cookie-based. Confirm the
+  // refresh endpoint contract before adding any 401 retry flow.
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
     final statusCode = err.response?.statusCode;

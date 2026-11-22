@@ -6,6 +6,8 @@ class DeepLinkService {
 
   final AppLinks _appLinks;
 
+  // TODO(confirm): Confirm the `rsc://` scheme and its rider-app destination
+  // before registering admin order links in this application.
   // Returns the URI that launched the app from a terminated state, if any.
   Future<Uri?> getInitialLink() async {
     try {

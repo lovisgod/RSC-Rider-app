@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:rsc_rider/core/constants/api_endpoints.dart';
 import 'package:rsc_rider/core/network/dio_client.dart';
 import 'package:rsc_rider/core/utils/logger.dart';
@@ -9,8 +10,9 @@ class RiderLocationRepositoryImpl implements RiderLocationRepository {
 
   final DioClient _client;
 
-  // Location broadcasting must never crash the app or interrupt the rider's
-  // flow — every failure is logged and swallowed, never rethrown.
+  // Failures are classified into the typed exceptions below so
+  // LocationBroadcastingService can back off, retry, or drop the fix —
+  // it never lets one propagate further and crash the app.
   @override
   Future<void> recordLocation(
     double latitude,
@@ -26,10 +28,29 @@ class RiderLocationRepositoryImpl implements RiderLocationRepository {
           masterOrderId: masterOrderId,
         ).toJson(),
       );
-    } catch (e) {
+    } on DioException catch (e) {
       // 401s are handled globally by SessionInterceptor (which also stops
-      // this broadcast's timer) — everything else is just logged.
+      // this broadcast's timer) — swallow it here rather than retrying.
+      if (e.response?.statusCode == 401) return;
+
       appLogger.w('[RiderLocation] Failed to record location.', error: e);
+      switch (e.response?.statusCode) {
+        case 429:
+          throw LocationRateLimitedException(_retryAfter(e));
+        case 403:
+          throw const LocationOrderNotAssignedException();
+        case 400:
+        case 422:
+          throw const LocationRejectedException();
+        default:
+          throw const LocationTransientException();
+      }
     }
+  }
+
+  Duration _retryAfter(DioException e) {
+    final header = e.response?.headers.value('retry-after');
+    final seconds = header == null ? null : int.tryParse(header);
+    return Duration(seconds: seconds ?? 10);
   }
 }

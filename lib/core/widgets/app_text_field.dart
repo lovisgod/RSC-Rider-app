@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:rsc_rider/core/constants/app_colors.dart';
+import 'package:rsc_rider/core/constants/app_text_styles.dart';
 
 class AppTextField extends StatefulWidget {
   const AppTextField({
@@ -70,6 +72,7 @@ class _AppTextFieldState extends State<AppTextField> {
       validator: widget.validator,
       inputFormatters: widget.inputFormatters,
       autofocus: widget.autofocus,
+      style: AppTextStyles.bodyLarge.copyWith(color: AppColors.rscFieldInk),
       decoration: InputDecoration(
         labelText: widget.label,
         hintText: widget.hint,

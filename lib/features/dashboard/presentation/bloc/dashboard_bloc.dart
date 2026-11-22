@@ -86,13 +86,15 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
       await _localStorage.saveOnlineStatus(isAvailable);
 
       if (isAvailable) {
-        await _locationBroadcastingService.startBroadcasting(
-          masterOrderId: null,
-        );
-        // Seed the assigned-orders list the moment the rider comes online;
-        // socket events keep it fresh from here (there is no polling loop).
+        // Being "online" does not start location broadcasting — that only
+        // begins once the rider has an active delivery (see
+        // ActiveOrdersCubit.startDelivery). Seed the assigned-orders list the
+        // moment the rider comes online; socket events keep it fresh from
+        // here (there is no polling loop).
         unawaited(_activeOrdersCubit.loadAssignedOrders());
       } else {
+        // Safety net: an active delivery should block going offline, but if
+        // broadcasting is somehow still running, stop it now.
         _locationBroadcastingService.stopBroadcasting();
       }
 
@@ -143,7 +145,8 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     final current = state;
     if (current is! DashboardLoaded) return;
 
-    if (permission != LocationPermissionStatus.granted) {
+    if (permission != LocationPermissionStatus.granted &&
+        permission != LocationPermissionStatus.grantedWhileInUse) {
       emit(
         current.copyWith(
           isLoadingLocation: false,
