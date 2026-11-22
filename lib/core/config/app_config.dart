@@ -26,7 +26,7 @@ class AppConfig {
 
   static const AppConfig production = AppConfig._(
     environment: 'production',
-    baseUrl: 'https://dineout.com.ng',
+    baseUrl: 'https://dineout.ng',
     appName: 'DineOut NG Rider',
   );
 
